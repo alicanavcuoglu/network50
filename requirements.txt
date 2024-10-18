@@ -1,0 +1,9 @@
+Flask
+flask-socketio
+Flask-Session
+Flask-SQLAlchemy
+Flask-Migrate
+Flask-Mail
+pytz
+requests
+python-dotenv

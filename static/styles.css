@@ -1,0 +1,168 @@
+html,
+body {
+  box-sizing: border-box;
+}
+
+html,
+body,
+* {
+  margin: 0;
+}
+
+.account-settings-links .list-group-item {
+  border: 0;
+}
+
+.account-settings-links .list-group-item.active {
+  font-weight: bold !important;
+}
+
+html:not(.dark-style) .account-settings-links .list-group-item.active {
+  background: transparent !important;
+  color: black;
+}
+
+.avatar {
+  display: block;
+  width: 7rem;
+  height: 7rem;
+  border-radius: 999px;
+  border: 1px solid #e8e8e8;
+  object-fit: cover;
+}
+
+.avatar.sm {
+  width: 2rem;
+  height: 2rem;
+}
+
+.avatar.md {
+  width: 2.5rem;
+  height: 2.5rem;
+}
+
+.avatar.lg {
+  width: 10rem;
+  height: 10rem;
+}
+
+.btn-default,
+.btn-default:hover {
+  border-color: rgba(24, 28, 33, 0.1);
+  background: rgba(0, 0, 0, 0);
+  color: #4E5155;
+}
+
+.nav-link.dropdown-toggle {
+  border-radius: 999px;
+}
+
+.nav-link.dropdown-toggle:hover {
+  background-color: #e8e8e8;
+  transition: ease-in;
+  transition-duration: 100ms;
+}
+
+.ui-w-80 {
+  width: 80px !important;
+  height: auto;
+}
+
+label.btn {
+  margin-bottom: 0;
+}
+
+.account-settings-fileinput {
+  position: absolute;
+  visibility: hidden;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+.container {
+  max-width: 1000px;
+}
+
+.post {
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  padding: 15px;
+  margin: 15px 0;
+  background-color: #f9f9f9;
+}
+
+.parent-post {
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  padding: 15px;
+  margin: 15px 0;
+  background-color: white;
+}
+
+.modal-content {
+  padding: 20px;
+}
+
+.comment {
+  display: flex;
+  gap: 0.5rem;
+  align-items: start;
+}
+
+.comment-box {
+  margin-top: 10px;
+}
+
+.comment-span {
+  background-color: white;
+  border-radius: 1rem;
+  border: 1px solid #ddd;
+  padding: .5rem .75rem;
+  display: flex;
+  flex-direction: column;
+}
+
+.text-xs {
+  font-size: 12px;
+}
+
+.cursor-pointer {
+  cursor: pointer;
+}
+
+.margin-t-2 {
+  margin-top: 2px;
+}
+
+.my-btn {
+  padding: 2px 4px;
+  border: none;
+  background-color: transparent;
+  font-size: 12px;
+  font-weight: 400;
+  transition: ease-in 100ms;
+}
+
+.my-btn:hover {
+  font-weight: 500;
+}
+
+.my-btn.active {
+  font-weight: 500;
+}
+
+.modal-dialog-bottom {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  margin: 0;
+  width: 100%;
+  max-width: 100%;
+}
+
+.modal-dialog-bottom .modal-content {
+  border-radius: 0;
+  border: none;
+}

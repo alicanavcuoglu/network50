@@ -1,0 +1,10 @@
+{% extends "layout.html" %}
+{% import "components/post.html" as postings %}
+
+{% block title %}
+{{ post.user.name }} {{ post.user.surname }}'s Post
+{% endblock %}
+
+{% block main %}
+{{ postings.post(post, current_user) }}
+{% endblock %}

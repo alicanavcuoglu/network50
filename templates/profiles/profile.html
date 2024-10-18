@@ -1,0 +1,164 @@
+{% extends "layout.html" %}
+{% import 'components/post.html' as post %}
+
+{% block title %}
+{{ user.name }} {{ user.surname }}
+{% endblock %}
+
+{% block main %}
+<!-- UI TEMPLATES from https://bbbootstrap.com/snippets/individual-user-profile-social-network-94176986, https://www.bootdey.com/snippets/view/bs4-profile-with-timeline-posts -->
+<div>
+  <!-- Cover -->
+  <div class="cover">
+    <div
+      class="mt-4 mb-4 d-flex flex-column flex-sm-row align-items-stretch align-items-sm-center justify-content-between row-gap-4">
+      <div class="d-sm-flex text-center text-sm-start justify-content-center align-items-center gap-4">
+        <img src="{{ user.image if user.image else url_for('static', filename='placeholder.jpg')}}"
+          alt="{{user.name}} {{user.surname}}" class="avatar lg mx-auto">
+        <div class="d-flex flex-column gap-2">
+          <div>
+            <h1 class="mb-1 fs-2">{{user.name}} {{user.surname}}</h1>
+            {% if user.location %}
+            <p class="small mb-0">
+              <i class="fas fa-map-marker-alt mr-2"></i>
+              <span class="text-secondary">
+                {{ user.location}}
+              </span>
+            </p>
+            {% endif %}
+          </div>
+
+          {% if user.working_on %}
+          <p class="small mb-0">
+            <span class="text-secondary">
+              {{ user.working_on}}
+            </span>
+          </p>
+          {% endif %}
+          {% if user.id != current_user.id %}
+          <div class="d-flex flex-column flex-sm-row gap-2 mt-1">
+            <!-- TODO: Add friend -->
+            <!-- if current_user.friends.includes(user.id) -->
+            <!-- <button>Remove friend</button> -->
+            <!-- elif current_user.received_requests.includes(user.id) -->
+            <!-- <button class="btn btn-primary">
+              <i class="fa-solid fa-check mr-2"></i>
+              <span>Accept request</span>
+            </button> -->
+            <!-- elif current_user.sent_requests.includes(user.id) -->
+            <!-- <button class="btn btn-primary">
+              <i class="fa-solid fa-envelope-circle-check mr-2"></i>
+              <span>Sent request</span>
+            </button> -->
+            <!-- else -->
+            <!-- <button class="btn btn-primary">
+              <i class="fas fa-plus mr-2"></i>
+              <span>Add friend</span>
+            </button> -->
+            <button class="btn btn-outline-primary">
+              <i class="fas fa-plus mr-2 small"></i>
+              <span class="small">Add friend</span>
+            </button>
+
+            <!-- TODO: Send message if friend -->
+            <button class="btn btn-primary">
+              <i class="fa-regular fa-message mr-2 small"></i>
+              <span class="small">Message</span>
+            </button>
+          </div>
+          {% else %}
+
+          <a href="/settings"><button class="btn btn-outline-primary">
+              <span class="small">
+                Edit profile
+              </span>
+            </button>
+          </a>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="d-flex flex-sm-column align-items-start">
+        <ul class="d-flex flex-sm-column flex-grow-1 flex-wrap gap-2 text-center">
+          <li class="list-inline-item flex-grow-1 justify-content-center d-flex align-items-center gap-2">
+            <i class="fa-solid fa-comments fs-4"></i>
+            <div>
+              <h5 class="font-weight-bold d-block mb-0">215 <!-- TODO: User post count --></h5>
+              <small class="text-muted">
+                Posts
+              </small>
+            </div>
+          </li>
+          <li class="list-inline-item flex-grow-1 justify-content-center d-flex align-items-center gap-2">
+            <i class="fa-solid fa-users fs-4"></i>
+            <div>
+              <h5 class="font-weight-bold d-block mb-0">340 <!-- TODO: User friends count --></h5>
+              <small class="text-muted">Friends</small>
+            </div>
+          </li>
+        </ul>
+      </div>
+    </div>
+    <!-- Tabs -->
+    <div
+      class="list-group d-flex flex-row text-center overflow-x-auto bg-light list-group-flush account-settings-links border-bottom">
+      <button class="list-group-item list-group-item-action active" data-bs-toggle="list" data-bs-target="#posts"
+        type="button" role="tab" aria-controls="general" aria-selected="true">Posts</button>
+      <button class="list-group-item list-group-item-action" data-bs-toggle="list" data-bs-target="#about" type="button"
+        role="tab" aria-controls="password" aria-selected="false">About</button>
+      <button class="list-group-item list-group-item-action" data-bs-toggle="list" data-bs-target="#friends"
+        type="button" role="tab" aria-controls="info" aria-selected="false">Friends</button>
+      <button class="list-group-item list-group-item-action" data-bs-toggle="list" data-bs-target="#groups"
+        type="button" role="tab" aria-controls="info" aria-selected="false">Groups</button>
+    </div>
+  </div>
+</div>
+<div class="tab-content py-4">
+  <div class="tab-pane fade" id="posts">
+    <!-- TODO: Display the user's posts -->
+  </div>
+  <div class="tab-pane fade" id="about">
+    <div class="mb-4">
+      <h2 class="fs-4">About</h2>
+      <p>{{user.about}}</p>
+    </div>
+    {% if user.interests %}
+    <div class="mb-4">
+      <h2 class="fs-4">Interests</h2>
+      {% set interests = user.interests.split(",") if user.interests else [] %}
+      {% for interest in interests%}
+      <span class="badge bg-light text-dark fs-6 fw-light">{{ interest }}</span>
+      {% endfor %}
+    </div>
+    {% endif %}
+    {% if user.classes %}
+    <div class="mb-4">
+      <h2 class="fs-4">Classes Taken</h2>
+      {% set classes = user.classes.split(",") if user.classes else [] %}
+      {% for class in classes%}
+      <span class="badge bg-light text-dark fs-6 fw-light">{{ class }}</span>
+      {% endfor %}
+    </div>
+    {% endif %}
+    {% if user.links %}
+    <div class="mb-4">
+      <h2 class="fs-4">Social Links</h2>
+      {% set links = user.links.split(",") if user.links else [] %}
+      {% for link in links%}
+      {% if 'http' in link %}
+      <a href="{{ link }}" class="d-block link-body-emphasis" target="_blank">{{ link }}</a>
+      {% else %}
+      <a href="http://{{ link }}" class="d-block link-body-emphasis" target="_blank">{{ link }}</a>
+      {% endif %}
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+  <div class="tab-pane fade" id="friends">
+    <!-- TODO: Display the user's friends -->
+  </div>
+  <div class="tab-pane fade" id="groups">
+    <!-- TODO: Display the user's groups -->
+  </div>
+</div>
+{% endblock %}

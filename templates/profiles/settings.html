@@ -1,0 +1,492 @@
+{% extends "layout.html" %}
+
+{% block title %}
+Settings
+{% endblock %}
+
+{% block main %}
+<h1 class="mb-4">Account Settings</h1>
+<!-- UI from https://bootdey.com/snippets/view/account-settings, made little changes -->
+<div class="row no-gutters row-bordered row-border-light">
+  <div class="col-md-3 pt-0 mb-4">
+    <div class="list-group list-group-flush account-settings-links">
+      <button class="list-group-item list-group-item-action active" data-bs-toggle="tab"
+        data-bs-target="#account-general" type="button" role="tab" aria-controls="general"
+        aria-selected="true">General</button>
+      <button class="list-group-item list-group-item-action" data-bs-toggle="tab"
+        data-bs-target="#account-change-password" type="button" role="tab" aria-controls="password"
+        aria-selected="false">Change
+        password</button>
+      <button class="list-group-item list-group-item-action" data-bs-toggle="tab" data-bs-target="#account-info"
+        type="button" role="tab" aria-controls="info" aria-selected="false">Info</button>
+      <button class="list-group-item list-group-item-action" data-bs-toggle="tab" data-bs-target="#account-classes"
+        type="button" role="tab" aria-controls="info" aria-selected="false">Classes</button>
+      <button class="list-group-item list-group-item-action" data-bs-toggle="tab" data-bs-target="#account-links"
+        type="button" role="tab" aria-controls="links" aria-selected="false">Links</button>
+      <button class="list-group-item list-group-item-action text-danger" data-bs-toggle="tab"
+        data-bs-target="#delete-account" type="button" role="tab" aria-controls="links" aria-selected="false">Delete
+        account</button>
+    </div>
+  </div>
+  <div class="col-md-9">
+    <div class="tab-content">
+      <div class="tab-pane fade active show" id="account-general">
+        <form action="/settings/general" method="post" enctype="multipart/form-data">
+          <div class="d-flex flex-column flex-sm-row gap-4 align-items-center">
+            <img id="imagePreview"
+              src="{{ user.image if user.image else url_for('static', filename='placeholder.jpg')}}" alt="avatar"
+              class="avatar">
+            <div>
+              <div class="d-flex flex-row flex-wrap align-items-center gap-2">
+                <label class="btn btn-outline-primary">
+                  Upload new photo
+                  <input id="imageInput" name="image" type="file" class="account-settings-fileinput">
+                </label>
+                <button id="resetBtn" type="button" class="btn btn-default md-btn-flat">Reset</button>
+              </div>
+
+              <div class="text-black-50 small mt-1">Allowed JPG, GIF or PNG. Max size of 1MB</div>
+            </div>
+          </div>
+          <hr class="my-3 text-black-50">
+
+          <div class="card-body">
+            <div class="row mb-3">
+              <div class="col-md-6">
+                <label class="form-label">Name</label>
+                <input class="form-control" type="text" name="name" aria-label="Name" placeholder="Tony"
+                  value="{{ user.name }}">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Surname</label>
+                <input class="form-control" type="text" name="surname" aria-label="surname" placeholder="Stark"
+                  value="{{ user.surname }}">
+              </div>
+            </div>
+            <div class="form-group mb-3">
+              <label class="form-label">E-mail</label>
+              <input type="text" class="form-control mb-1" name="email" value="{{ user.email }}">
+            </div>
+          </div>
+          <div class="text-end mt-3">
+            <button type="submit" class="btn btn-primary">Save changes</button>
+          </div>
+        </form>
+      </div>
+      <div class="tab-pane fade" id="account-change-password">
+        <form action="/settings/password" method="post">
+          <div class="form-group mb-3">
+            <label class="form-label">Current password</label>
+            <input type="password" class="form-control" name="current-password" required>
+          </div>
+
+          <div class="form-group mb-3">
+            <label class="form-label">New password</label>
+            <input type="password" class="form-control" name="new-password" required>
+          </div>
+
+          <div class="form-group mb-3">
+            <label class="form-label">Repeat new password</label>
+            <input type="password" class="form-control" name="new-password-again" required>
+          </div>
+
+          <div class="text-end mt-3">
+            <button type="submit" class="btn btn-primary">Save changes</button>
+          </div>
+        </form>
+      </div>
+      <div class="tab-pane fade" id="account-info">
+        <form action="/settings/info" method="post">
+          <div class="mb-3">
+            <label for="location" class="form-label">Location</label>
+            <input type="text" class="form-control" name="location" aria-label="Location" value="{{ user.location }}"
+              placeholder="Malibu, California" />
+          </div>
+          <div class="mb-3">
+            <label for="about" class="form-label">About*</label>
+            <textarea style="height: 14rem;" class="form-control" name="about-me" aria-label="About me"
+              placeholder="I’m Tony Stark—genius, billionaire, playboy, philanthropist. I build things—big things. I revolutionize industries, create tech no one else can dream of, and save the world from time to time in a suit of high-tech armor I designed. Some call me Iron Man, but really, I’m just a guy trying to make sure tomorrow is better than today. Sure, I’ve got a bit of an ego, but when you’re the best at what you do, it’s hard not to. Bottom line? I believe in using my brain and my resources to change the world—one invention at a time.">{{ user.about }}</textarea>
+          </div>
+          <div class="mb-3">
+            <label for="workingOn" class="form-label">Currently working on</label>
+            <input type=" text" class="form-control" name="working-on" aria-label="Working on"
+              value="{{user.working_on}}" placeholder="Currently refining the next generation of arc reactor.">
+          </div>
+          <!-- INTERESTS -->
+          <div class="mb-3">
+            <label class="form-label">Interests</label>
+            <div class="form-check mb-2">
+              <label class="form-check-label" for="languages">
+                <input class="form-check-input" aria-label="Programming Languages" type="checkbox" name="interests[]" {%
+                  if 'Programming Languages' in user.interests %} checked {% endif %} id="languages"
+                  value="Programming Languages">
+                <b>
+                  Programming Languages:
+                </b>
+                Study of different programming languages (e.g., Python, Java, C++, JavaScript) and
+                their syntax, semantics, and applications.
+              </label>
+            </div>
+            <div class="form-check mb-2">
+              <label class="form-check-label" for="data-and-algorithms">
+                <input class="form-check-input" aria-label="CS50 Data Structures and Algorithms" type="checkbox" {%
+                  if 'Data Structures and Algorithms' in user.interests %} checked {% endif %} name="interests[]"
+                  id="data-and-algorithms" value="Data Structures and Algorithms">
+                <b>
+                  Data Structures and Algorithms:
+                </b>
+                Understanding how to organize, manage, and store data efficiently, as well as
+                algorithms for processing and manipulating data.
+              </label>
+            </div>
+            <div class="form-check mb-2">
+              <label class="form-check-label" for="software-engineering">
+                <input class="form-check-input" aria-label="Software Engineering" type="checkbox" name="interests[]" {%
+                  if 'Software Engineering' in user.interests %} checked {% endif %} id="software-engineering"
+                  value="Software Engineering">
+                <b>
+                  Software Engineering:
+                </b>
+                Principles and practices of designing, developing, testing, and maintaining software
+                systems.
+              </label>
+            </div>
+            <div class="form-check mb-2">
+              <label class="form-check-label" for="web">
+                <input class="form-check-input" aria-label="Web Development" type="checkbox" name="interests[]" id="web"
+                  {% if 'Web Development' in user.interests %} checked {% endif %} value="Web Development">
+                <b>
+                  Web Development:
+                </b>
+                Front-end and back-end development, including HTML, CSS, JavaScript, and server-side
+                languages like Node.js or PHP.
+              </label>
+            </div>
+            <div class="form-check mb-2">
+              <label class="form-check-label" for="mobile">
+                <input class="form-check-input" aria-label="Mobile App Development" type="checkbox" name="interests[]"
+                  {% if 'Mobile App Development' in user.interests %} checked {% endif %} id="mobile"
+                  value="Mobile App Development">
+                <b>
+                  Mobile App Development:
+                </b>
+                Techniques and frameworks for creating applications for mobile devices (e.g., iOS,
+                Android).
+              </label>
+            </div>
+            <div class="form-check mb-2">
+              <label class="form-check-label" for="database">
+                <input class="form-check-input" aria-label="Database Management" type="checkbox" name="interests[]" {%
+                  if 'Database Management' in user.interests %} checked {% endif %} id="database"
+                  value="Database Management">
+                <b>
+                  Database Management:
+                </b>
+                Study of database systems, SQL, data modeling, and data retrieval techniques.
+              </label>
+            </div>
+            <div class="form-check mb-2">
+              <label class="form-check-label" for="operating-systems">
+                <input class="form-check-input" aria-label="Operating Systems" type="checkbox" name="interests[]" {%
+                  if 'Operating Systems' in user.interests %} checked {% endif %} id="operating-systems"
+                  value="Operating Systems">
+                <b>
+                  Operating Systems:
+                </b>
+                Understanding the design and functionality of operating systems, including process
+                management, memory management, and file systems.
+              </label>
+            </div>
+            <div class="form-check mb-2">
+              <label class="form-check-label" for="networking">
+                <input class="form-check-input" aria-label="Networking" type="checkbox" name="interests[]"
+                  id="networking" {% if 'Networking' in user.interests %} checked {% endif %} value="Networking">
+                <b>
+                  Networking:
+                </b>
+                Principles of computer networking, protocols, and security.
+              </label>
+            </div>
+            <div class="form-check mb-2">
+              <label class="form-check-label" for="cybersecurity">
+                <input class="form-check-input" aria-label="Cybersecurity" type="checkbox" name="interests[]" {%
+                  if 'Cybersecurity' in user.interests %} checked {% endif %} id="cybersecurity" value="Cybersecurity">
+                <b>
+                  Cybersecurity:
+                </b>
+                Study of protecting systems, networks, and programs from digital attacks.
+              </label>
+            </div>
+            <div class="form-check mb-2">
+              <label class="form-check-label" for="ai-ml">
+                <input class="form-check-input" aria-label="Artificial Intelligence and Machine Learning"
+                  type="checkbox" {% if 'Artificial Intelligence and Machine Learning' in user.interests %} checked {%
+                  endif %} name="interests[]" id="ai-ml" value="Artificial Intelligence and Machine Learning">
+                <b>
+                  Artificial Intelligence and Machine Learning:
+                </b>
+                Exploring algorithms and techniques for enabling computers to
+                learn and make decisions based on data.
+              </label>
+            </div>
+            <div class="form-check mb-2">
+              <label class="form-check-label" for="devops">
+                <input class="form-check-input" aria-label="DevOps" type="checkbox" name="interests[]" id="devops" {%
+                  if 'DevOps' in user.interests %} checked {% endif %} value="DevOps">
+                <b>
+                  DevOps:
+                </b>
+                Practices that combine software development and IT operations, focusing on shorter development cycles
+                and
+                continuous delivery.
+              </label>
+            </div>
+            <div class="form-check mb-2">
+              <label class="form-check-label" for="cloud-computing">
+                <input class="form-check-input" aria-label="Cloud Computing" type="checkbox" name="interests[]" {%
+                  if 'Cloud Computing' in user.interests %} checked {% endif %} id="cloud-computing"
+                  value="Cloud Computing">
+                <b>
+                  Cloud Computing:
+                </b>
+                Understanding cloud services and architectures, including SaaS, PaaS, and IaaS.
+              </label>
+            </div>
+            <div class="form-check mb-2">
+              <label class="form-check-label" for="testing">
+                <input class="form-check-input" aria-label="Software Testing" type="checkbox" name="interests[]" {%
+                  if 'Software Testing' in user.interests %} checked {% endif %} id="testing" value="Software Testing">
+                <b>
+                  Software Testing:
+                </b>
+                Techniques and methodologies for testing software to ensure quality and reliability.
+              </label>
+            </div>
+            <div class="form-check mb-2">
+              <label class="form-check-label" for="ux-ui">
+                <input class="form-check-input" aria-label="User Experience (UX) and User Interface (UI) Design" {%
+                  if 'User Experience (UX) and User Interface (UI) Design' in user.interests %} checked {% endif %}
+                  type="checkbox" name="interests[]" id="ux-ui"
+                  value="User Experience (UX) and User Interface (UI) Design">
+                <b>
+                  User Experience (UX) and User Interface (UI) Design:
+                </b>
+                Study of designing software applications with a focus on usability and user satisfaction.
+              </label>
+            </div>
+            <div class="form-check mb-2">
+              <label class="form-check-label" for="game-development">
+                <input class="form-check-input" aria-label="Game Development" type="checkbox" name="interests[]" {%
+                  if 'Game Development' in user.interests %} checked {% endif %} id="game-development"
+                  value="Game Development">
+                <b>
+                  Game Development:
+                </b>
+                Principles and practices of creating video games, including game design, graphics programming, and
+                physics
+                simulations.
+              </label>
+            </div>
+          </div>
+
+
+          <div class="text-end mt-3">
+            <button type="submit" class="btn btn-primary">Save changes</button>
+          </div>
+        </form>
+      </div>
+
+      <div class="tab-pane fade" id="account-classes">
+        <form action="/settings/classes" method="post">
+          <label class="form-label">Taken classes</label>
+          <div class="col-md-9">
+            <div class="form-check">
+              <label class="form-check-label" for="cs50x">
+                <input class="form-check-input" aria-label="CS50x" type="checkbox" name="classes[]" id="cs50x" {%
+                  if 'CS50x' in user.classes %} checked {% endif %} value="CS50x">
+                CS50x
+              </label>
+            </div>
+            <div class="form-check">
+              <label class="form-check-label" for="cs50ai">
+                <input class="form-check-input" aria-label="CS50 AI" type="checkbox" name="classes[]" id="cs50ai" {%
+                  if 'CS50 AI' in user.classes %} checked {% endif %} value="CS50 AI">
+                CS50 AI
+              </label>
+            </div>
+            <div class="form-check">
+              <label class="form-check-label" for="cs50business">
+                <input class="form-check-input" aria-label="CS50 Business" type="checkbox" name="classes[]" {%
+                  if 'CS50 Business' in user.classes %} checked {% endif %} id="cs50business" value="CS50 Business">
+                CS50 Business
+              </label>
+            </div>
+            <div class="form-check">
+              <label class="form-check-label" for="cs50cybersecurity">
+                <input class="form-check-input" aria-label="CS50 Cybersecurity" type="checkbox" name="classes[]" {%
+                  if 'CS50 Cybersecurity' in user.classes %} checked {% endif %} id="cs50cybersecurity"
+                  value="CS50 Cybersecurity">
+                CS50 Cybersecurity
+              </label>
+            </div>
+            <div class="form-check">
+              <label class="form-check-label" for="cs50lawyers">
+                <input class="form-check-input" aria-label="CS50 for Lawyers" type="checkbox" name="classes[]" {%
+                  if 'CS50 for Lawyers' in user.classes %} checked {% endif %} id="cs50lawyers"
+                  value="CS50 for Lawyers">
+                CS50 for Lawyers
+              </label>
+            </div>
+            <div class="form-check">
+              <label class="form-check-label" for="cs50python">
+                <input class="form-check-input" aria-label="CS50 Python" type="checkbox" name="classes[]"
+                  id="cs50python" {% if 'CS50 Python' in user.classes %} checked {% endif %} value="CS50 Python">
+                CS50 Python
+              </label>
+            </div>
+            <div class="form-check">
+              <label class="form-check-label" for="cs50r">
+                <input class="form-check-input" aria-label="CS50 R" type="checkbox" name="classes[]" id="cs50r" {%
+                  if 'CS50 R' in user.classes %} checked {% endif %} value="CS50 R">
+                CS50 R
+              </label>
+            </div>
+            <div class="form-check">
+              <label class="form-check-label" for="cs50scratch">
+                <input class="form-check-input" aria-label="CS50 Scratch" type="checkbox" name="classes[]" {%
+                  if 'CS50 Scratch' in user.classes %} checked {% endif %} id="cs50scratch" value="CS50 Scratch">
+                CS50 Scratch
+              </label>
+            </div>
+            <div class="form-check">
+              <label class="form-check-label" for="cs50sql">
+                <input class="form-check-input" aria-label="CS50 SQL" type="checkbox" name="classes[]" id="cs50sql" {%
+                  if 'CS50 SQL' in user.classes %} checked {% endif %} value="CS50 SQL">
+                CS50 SQL
+              </label>
+            </div>
+            <div class="form-check">
+              <label class="form-check-label" for="cs50web">
+                <input class="form-check-input" aria-label="CS50 Web" type="checkbox" name="classes[]" id="cs50web" {%
+                  if 'CS50 Web' in user.classes %} checked {% endif %} value="CS50 Web">
+                CS50 Web
+              </label>
+            </div>
+          </div>
+
+          <div class="text-end mt-3">
+            <button type="submit" class="btn btn-primary">Save changes</button>
+          </div>
+        </form>
+      </div>
+      <div class="tab-pane fade" id="account-links">
+        <form action="/settings/links" method="post">
+          <div class="form-group mb-3">
+            <div class="d-flex justify-content-between align-items-center gap-4 mb-3">
+              <label class="form-label">Social links</label>
+              <button type="button" class="btn btn-outline-dark flex-shrink-0 h-100" id="add-link-btn">
+                <i class="fas fa-plus"></i>
+                Add new link</button>
+            </div>
+            {% set links = user.links.split(",") if user.links else []%}
+            <div id="links-container">
+              <div class="d-flex flex-column gap-2">
+                {% for link in links %}
+                <div class="input-group">
+                  <input type="text" name="link[]" class="form-control" placeholder="Enter a link" aria-label="My links"
+                    value="{{ link }}">
+                  <button type="button" class="btn btn-outline-danger delete-btn"><i class="fas fa-trash"></i></button>
+                </div>
+                {% endfor %}
+              </div>
+            </div>
+          </div>
+          <div class="text-end mt-3">
+            <button type="submit" class="btn btn-primary">Save changes</button>
+          </div>
+        </form>
+      </div>
+      <div class="tab-pane fade" id="delete-account">
+        <h2>Are you sure?</h2>
+        <p>This action cannot be taken back. Once you delete your account, you delete all your data from Network50's
+          database.</p>
+        <form action="/profiles/{{user.id}}/delete" method="post"><button class="btn btn-danger">Yes, delete my
+            account.</button></form>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+
+<script>
+  // Get image elements
+  const imagePreview = document.getElementById('imagePreview')
+  const imageInput = document.getElementById('imageInput')
+
+  imageInput.addEventListener("change", (event) => {
+    // Get selected file
+    const file = event.target.files[0];
+
+    // Set uploaded image
+    if (file) {
+      imagePreview.src = URL.createObjectURL(file);
+    }
+  })
+
+  // Get reset button
+  const resetBtn = document.getElementById('resetBtn');
+
+  resetBtn.addEventListener("click", () => {
+    imagePreview.src = "/static/placeholder.jpg";
+  })
+
+
+  // Get the container with existing links
+  const container = document.getElementById('links-container');
+
+  // Add delete functionality on page load
+  const deleteBtns = document.querySelectorAll('.delete-btn');
+  deleteBtns.forEach(btn => {
+    btn.addEventListener('click', function () {
+      const inputGroup = btn.parentElement;
+      inputGroup.remove();
+    });
+  });
+
+  // Add link
+  document.getElementById('add-link-btn').addEventListener('click', function () {
+    // Get links container
+    const container = document.getElementById('links-container');
+
+    // Create a div to hold the new input and trash icon
+    const inputGroup = document.createElement('div');
+    inputGroup.classList.add('input-group', 'mt-2');
+
+    // Create a new input element
+    const newInput = document.createElement('input');
+    newInput.type = 'text';
+    newInput.name = 'link[]';  // This will make it an array when submitted
+    newInput.classList.add('form-control');
+    newInput.placeholder = 'Enter a link';
+
+    // Create a delete button
+    const deleteBtn = document.createElement('button');
+    deleteBtn.type = 'button';
+    deleteBtn.classList.add('btn', 'btn-outline-danger', 'delete-btn');
+    deleteBtn.innerHTML = '<i class="fas fa-trash"></i>';
+
+    // Append the input and the delete button to the input group
+    inputGroup.appendChild(newInput);
+    inputGroup.appendChild(deleteBtn);
+
+    // Add the input group to the container
+    container.appendChild(inputGroup);
+
+    // Add event listener to the delete button to remove the input group
+    deleteBtn.addEventListener('click', function () {
+      container.removeChild(inputGroup);
+    });
+  });
+</script>
+{% endblock %}
