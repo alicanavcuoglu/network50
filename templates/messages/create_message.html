@@ -1,0 +1,117 @@
+{% extends "layout.html" %} {% block title %} New message {% endblock %} {%
+block main %}
+<div id="user" class="mb-3 d-flex gap-2 align-items-center"></div>
+
+<form method="post" id="messageForm">
+	<input type="hidden" value="{{friends}}" id="friends" />
+	<div class="mb-3">
+		<label for="about" class="form-label">Select a friend</label>
+		<select
+			name="username"
+			class="form-select"
+			aria-label="Default select example"
+			onchange="selectedFriend(event.target.value)"
+			required>
+			<option selected disabled>Select a friend</option>
+			{% if current_user.friends | length >= 1 %} {% for friend in friends
+			%}
+			<option value="{{friend.username}}">
+				{{ friend.name }} {{ friend.surname }}
+			</option>
+			{% endfor %} {% else %}
+			<option disabled>Add friends to send a message</option>
+			{% endif %}
+		</select>
+	</div>
+	<div class="mb-3">
+		<label for="message" class="form-label">Message</label>
+		<textarea
+			name="message"
+			id="message"
+			class="form-control message-input"
+			rows="3"
+			required></textarea>
+	</div>
+	<button type="submit" class="btn btn-primary float-end">
+		Send a message
+	</button>
+</form>
+
+<script>
+	document.addEventListener("DOMContentLoaded", function () {
+		// Check if socket is already defined; if not, initialize
+		if (typeof socket === "undefined") {
+			socket = io(); // Initialize socket if it’s not defined
+			console.log("Socket initialized");
+		}
+
+		document
+			.getElementById("messageForm")
+			.addEventListener("submit", function (e) {
+				e.preventDefault();
+
+				// Get form data
+				const formEl = document.forms.messageForm;
+				const formData = new FormData(formEl);
+
+				const username = formData.get("username");
+				const message = formData.get("message");
+
+				if (username && message) {
+					socket.emit("send_message", {
+						username,
+						message,
+						firstMessage: true,
+					});
+				} else {
+					alert("Please select a friend and enter a message!");
+				}
+			});
+
+		socket.on("first_message_sent", (data) => {
+			if (data.success) {
+				// Redirect to conversation page with the target user
+				window.location.href = data.chat_url;
+			}
+		});
+
+		socket.on("message_error", (data) => {
+			alert(data.error);
+		});
+
+		// Get friends of the user from hidden input and convert format to work with JS
+		const friends = JSON.parse(
+			document
+				.getElementById("friends")
+				.value.replace(/'/g, '"')
+				.replace(/None/g, "null")
+		);
+
+		// Display selected friend
+		function selectedFriend(username) {
+			// Get the selected friend
+			const friend = friends.find(
+				(friend) => friend.username === username
+			);
+
+			// Get parent div
+			const parentDiv = document.getElementById("user");
+
+			// Create image
+			const image = document.createElement("img");
+			image.classList.add("avatar", "md", "margin-t-2");
+			image.src = friend.image ?? "/static/placeholder.jpg";
+			image.alt = friend.username;
+
+			// Create heading
+			const header = document.createElement("h2");
+			header.textContent = `${friend.name} ${friend.surname}`;
+			header.classList.add("fw-medium", "mb-0", "fs-6");
+
+			// Append childs
+			parentDiv.appendChild(image);
+			parentDiv.appendChild(header);
+		}
+	});
+</script>
+{% endblock %}

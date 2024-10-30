@@ -5,7 +5,7 @@
     <a href="/profiles/{{ current_user.username }}"
       class="d-flex align-items-center gap-2 mb-3 text-decoration-none text-secondary-emphasis">
       <img src="{{current_user.image if current_user.image else url_for('static', filename='placeholder.jpg')}}"
-        alt="avatar" class="avatar md">
+        alt="avatar" class="avatar sm">
       <h2 class="fs-4">{{current_user.name}} {{current_user.surname}}</h2>
     </a>
     <form action="/post" method="post">
@@ -25,7 +25,7 @@
     <div class="d-flex align-items-center mb-3">
       <a href="/profiles/{{post.user.username}}">
         <img src="{{ post.user.image if post.user.image else url_for('static', filename='placeholder.jpg')}}"
-          alt="{{ post.user.username }}" class="avatar md margin-t-2">
+          alt="{{ post.user.username }}" class="avatar sm margin-t-2">
       </a>
       <div class="d-flex flex-column ms-2">
         <a href="/profiles/{{post.user.username}}" class="text-decoration-none text-secondary-emphasis fw-medium">
@@ -61,7 +61,7 @@
           <a href="/profiles/{{post.original_post.user.username}}">
             <img
               src="{{ post.original_post.user.image if post.original_post.user.image else url_for('static', filename='placeholder.jpg')}}"
-              alt="{{ post.original_post.user.username }}" class="avatar md margin-t-2">
+              alt="{{ post.original_post.user.username }}" class="avatar sm margin-t-2">
           </a>
           <div class="d-flex flex-column ms-2">
             <a href="/profiles/{{post.original_post.user.username}}"
@@ -117,7 +117,7 @@
       <div class="comment" data-comment-id="{{comment.id}}">
         <a href="/profiles/{{comment.user.username}}"><img
             src="{{ comment.user.image if comment.user.image else url_for('static', filename='placeholder.jpg')}}"
-            alt="{{ comment.user.username }}" class="avatar sm margin-t-2">
+            alt="{{ comment.user.username }}" class="avatar xs margin-t-2">
         </a>
         <div class="d-flex flex-column align-items-baseline">
           <div class="comment-span text-break">

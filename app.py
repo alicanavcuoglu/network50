@@ -1,7 +1,8 @@
-from datetime import datetime
 import imghdr
+import json
 import os
 import uuid
+from datetime import date, datetime
 
 import click
 from dotenv import load_dotenv
@@ -9,6 +10,7 @@ from flask import (
     Flask,
     abort,
     flash,
+    g,
     jsonify,
     redirect,
     render_template,
@@ -20,21 +22,27 @@ from flask import (
 from flask.cli import with_appcontext
 from flask_mail import Mail
 from flask_migrate import Migrate
+from flask_socketio import emit
 from markupsafe import escape
+from sqlalchemy import or_
 from werkzeug.security import check_password_hash, generate_password_hash
 from werkzeug.utils import secure_filename
 
 from config import Config
+from events import socketio, connected_users
 from helpers import (
     array_to_str,
+    format_message_time,
     format_time_ago,
+    has_unread_messages,
     login_required,
     logout_required,
     not_found,
     upload,
     validate_image,
 )
-from models import Comment, Like, Post, User, db
+from models import Comment, Like, Message, Post, User, db
+from queries import get_conversation, get_friends, get_latest_conversations
 
 load_dotenv()
 
@@ -45,6 +53,7 @@ app.config.from_object(Config)
 
 db.init_app(app)
 mail = Mail(app)
+socketio.init_app(app)
 
 
 """ CLEAR DATABASE """
@@ -97,6 +106,25 @@ def unauthorized():
 @app.template_filter("time_ago")
 def time_ago_filter(dt):
     return format_time_ago(dt)
+
+
+@app.template_filter("message_time")
+def message_time_filter(dt):
+    return format_message_time(dt)
+
+
+@app.before_request
+def load_unread_message_status():
+    user_id = session.get("user_id")
+
+    if user_id:
+        current_user = User.query.get(user_id)
+        if current_user:
+            g.has_unread_messages = has_unread_messages(current_user.id)
+        else:
+            g.has_unread_messages = False
+    else:
+        g.has_unread_messages = False
 
 
 # @app.route("/email")
@@ -499,6 +527,7 @@ def friends():
     posts = Post.query.all()
     return render_template("friends.html", posts=posts)
 
+
 # Post page
 @app.route("/posts/<int:id>")
 @login_required
@@ -518,13 +547,16 @@ def create_post():
     db.session.commit()
     return redirect(url_for("index"))
 
+
 # Reshare post
 @app.route("/post/<id>/reshare", methods=["POST"])
 @login_required
 def reshare_post(id):
     parent_post = Post.query.get_or_404(id)
+    parent_post.shares += 1
     content = request.form["content"]
     post = Post(content=content, parent_id=parent_post.id, user_id=session["user_id"])
+    # TODO: Create a notification for original_post user
     db.session.add(post)
     db.session.commit()
     return redirect(url_for("index"))
@@ -551,7 +583,7 @@ def delete_post(id):
     return jsonify({"success": True})
 
 
-# Likepost
+# Like post
 @app.route("/like/<id>", methods=["POST"])
 @login_required
 def like_post(id):
@@ -572,6 +604,8 @@ def like_post(id):
         db.session.add(new_like)
         is_liked = True
 
+    # TODO: Create a notification for post user
+
     # Update the user's liked posts and the post's like count
     db.session.commit()
     like_count = len(post.likes)
@@ -585,11 +619,9 @@ def like_post(id):
 def like_comment(id):
     user = db.get_or_404(User, session["user_id"])
     comment = db.get_or_404(Comment, id)
-    print("here")
-    print("after comment")
+
     # Convert liked posts to array
     like = Like.query.filter_by(user_id=user.id, comment_id=comment.id).first()
-    print("after like")
 
     # Check if the post is already liked by the user
     if like:
@@ -602,11 +634,11 @@ def like_comment(id):
         db.session.add(new_like)
         is_liked = True
 
-    print("after sessions")
+    # TODO: Create a notification for comment's user
+
     # Update the user's liked posts and the post's like count
     db.session.commit()
     like_count = len(comment.likes)
-    print("after count")
 
     return jsonify({"likes": like_count, "isLiked": is_liked})
 
@@ -621,6 +653,8 @@ def comment_post(id):
 
     # Create comment
     comment = Comment(user_id=user.id, post_id=post.id, content=content)
+
+    # TODO: Create a notification for post user
 
     db.session.add(comment)
     db.session.commit()
@@ -657,6 +691,7 @@ def delete_comment(id):
     return jsonify({"success": True})
 
 
+# Load more comments
 @app.route("/post/<id>/comments")
 @login_required
 def load_more_comments(id):
@@ -687,3 +722,314 @@ def load_more_comments(id):
         comment_list.append(comment_data)
 
     return jsonify({"comments": comment_list, "has_next": comments.has_next})
+
+
+""" FRIENDS """
+
+
+# Requests
+@app.route("/requests")
+@login_required
+def display_friend_requests():
+    user = db.get_or_404(User, session["user_id"])
+
+    received_requests = (
+        User.query.filter(User.id in user.received_requests.split(","))
+        .order_by(User.received_requests.desc())
+        .all()
+        if user.received_requests
+        else []
+    )
+
+    return render_template("profiles/requests.html", users=received_requests)
+
+
+# Send a friend request
+@app.route("/requests/<username>", methods=["POST"])
+@login_required
+def send_friend_request(username):
+    current_user = db.get_or_404(User, session["user_id"])
+    target_user = User.query.filter_by(username=username).first()
+
+    if not target_user:
+        flash("User not found!", "error")
+        return "", 200
+
+    if target_user in current_user.friends:
+        flash("You're already friends with this user.", "info")
+        return "", 200
+
+    elif target_user in current_user.pending_requests:
+        flash("Friend request already sent.", "info")
+        return "", 200
+
+    elif current_user in target_user.pending_requests:
+        # Accept the request if current user was already requested by the target user
+        current_user.friends.append(target_user)
+        target_user.friends.append(current_user)
+
+        # Remove pending/received requests
+        current_user.received_requests.remove(target_user)
+        target_user.pending_requests.remove(current_user)
+
+        # TODO: Send a notification
+
+        db.session.commit()
+        flash(
+            f"You are now friends with {target_user.name} {target_user.surname}.",
+            "success",
+        )
+        return "", 200
+
+    current_user.pending_requests.append(target_user)
+    target_user.received_requests.append(current_user)
+
+    # TODO: Send a notification
+
+    db.session.commit()
+
+    flash(
+        f"Friend request sent to {target_user.name} {target_user.surname}.", "success"
+    )
+    return jsonify({"username": target_user.username, "status": "success"})
+
+
+# Accept a friend request
+@app.route("/requests/<username>/accept", methods=["POST"])
+@login_required
+def accept_friend_request(username):
+    current_user = db.get_or_404(User, session["user_id"])
+    target_user = User.query.filter_by(username=username).one_or_404()
+
+    if target_user in current_user.friends:
+        flash("You're already friends with this user.", "info")
+        return "", 200
+
+    # Accept the request if current user was already requested by the target user
+    current_user.friends.append(target_user)
+    target_user.friends.append(current_user)
+
+    # Remove pending/received requests
+    current_user.received_requests.remove(target_user)
+    target_user.pending_requests.remove(current_user)
+
+    # TODO: Send a notification
+
+    db.session.commit()
+
+    flash(
+        f"You're now friends with {target_user.name} {target_user.surname}.", "success"
+    )
+    return jsonify({"username": target_user.username, "status": "success"})
+
+
+# Decline a friend request
+@app.route("/requests/<username>/decline", methods=["POST"])
+@login_required
+def decline_friend_request(username):
+    current_user = db.get_or_404(User, session["user_id"])
+    target_user = User.query.filter_by(username=username).one_or_404()
+
+    if target_user in current_user.friends:
+        flash("You're already friends with this user.", "info")
+        return "", 200
+
+    # Remove pending/received requests
+    current_user.received_requests.remove(target_user)
+    target_user.pending_requests.remove(current_user)
+
+    db.session.commit()
+
+    flash(
+        f"Friend request from {target_user.name} {target_user.surname} declined.",
+        "success",
+    )
+    return jsonify({"username": target_user.username, "status": "success"})
+
+
+# Remove a user from friends
+@app.route("/friends/<username>/remove", methods=["DELETE"])
+@login_required
+def remove_friend(username):
+    current_user = db.get_or_404(User, session["user_id"])
+    target_user = User.query.filter_by(username=username).one_or_404()
+
+    if target_user not in current_user.friends:
+        flash("You're not friends with this user.", "info")
+        return "", 200
+
+    # Remove pending/received requests
+    current_user.friends.remove(target_user)
+    target_user.friends.remove(current_user)
+
+    db.session.commit()
+
+    flash(f"{target_user.name} {target_user.surname} removed from friends.", "success")
+    return jsonify({"username": target_user.username, "status": "success"})
+
+
+""" MESSAGES """
+
+
+# Start a new conversation
+@app.route("/messages/new")
+@login_required
+def start_conversation():
+    friends_data = get_friends(session["user_id"])
+    friends = []
+    for friend_data in friends_data:
+        friend_json = {
+            "id": friend_data.id,
+            "username": friend_data.username,
+            "name": friend_data.name,
+            "surname": friend_data.surname,
+            "image": friend_data.image,
+        }
+        friends.append(friend_json)
+
+    return render_template("messages/create_message.html", friends=friends)
+
+
+# Messages page
+@app.route("/messages")
+@login_required
+def view_messages():
+    current_user = db.get_or_404(User, session["user_id"])
+    messages = get_latest_conversations(current_user.id)
+
+    return render_template("messages/index.html", messages=messages)
+
+
+# Single message page
+@app.route("/messages/<username>")
+@login_required
+def view_conversation(username):
+    # Get current user and friend
+    current_user = db.get_or_404(User, session["user_id"])
+    friend = User.query.filter_by(username=username).first_or_404()
+
+    if current_user.username == username:
+        flash("You can't chat with yourself!", "error")
+        return redirect(url_for("view_messages"))
+
+    # Limit the initial number of messages to load, for example, the latest 20
+    message_limit = 20
+
+    # Fetch initial messages between current user and friend
+    messages = (
+        Message.query.filter(
+            (
+                (Message.sender_id == current_user.id)
+                & (Message.recipient_id == friend.id)
+            )
+            | (
+                (Message.sender_id == friend.id)
+                & (Message.recipient_id == current_user.id)
+            )
+        )
+        .order_by(Message.created_at.desc())
+        .limit(message_limit)
+        .all()
+    )
+
+    # Reverse to show from oldest to newest after limiting
+    messages.reverse()
+
+    if messages:
+        return render_template(
+            "messages/conversation.html",
+            messages=messages,
+            friend=friend,
+            has_more=len(messages) == message_limit,
+        )
+    else:
+        return not_found()
+
+
+# Load more messages
+@app.route("/messages/<username>/more")
+@login_required
+def load_more_conversation(username):
+    # Get current user and friend
+    current_user = db.get_or_404(User, session["user_id"])
+    friend = User.query.filter_by(username=username).first_or_404()
+
+    if current_user.username == username:
+        flash("You can't chat with yourself!", "error")
+        return redirect(url_for("view_messages"))
+
+    # Limit the initial number of messages to load
+    message_limit = 20
+    page = int(request.args["page"]) + 1
+
+    # Fetch initial messages between current user and friend
+    messages = (
+        Message.query.filter(
+            (
+                (Message.sender_id == current_user.id)
+                & (Message.recipient_id == friend.id)
+            )
+            | (
+                (Message.sender_id == friend.id)
+                & (Message.recipient_id == current_user.id)
+            )
+        )
+        .order_by(Message.created_at.desc())
+        .paginate(page=page, per_page=message_limit)
+    )
+
+    message_list = []
+
+    for message in messages:
+        message_data = {
+            "content": message.content,
+            "sender": {
+                "id": message.sender.id,
+                "image": message.sender.image,
+                "name": message.sender.name,
+                "surname": message.sender.surname,
+            },
+            "sender_id": message.sender.id,
+            "recipient_id": message.recipient_id,
+            "created_at_iso": message.created_at.strftime("%Y-%m-%d %H:%M:%S"),
+            "created_at": format_time_ago(message.created_at),
+        }
+        message_list.append(message_data)
+
+    return jsonify({"messages": message_list, "has_next": messages.has_next})
+
+
+# Update read status
+@app.route("/messages/<username>/mark_read", methods=["POST"])
+@login_required
+def mark_messages_as_read(username):
+    # Get current user and friend
+    current_user = db.get_or_404(User, session["user_id"])
+    friend = User.query.filter_by(username=username).first_or_404()
+
+    if current_user.username == username:
+        flash("You can't chat with yourself!", "error")
+        return redirect(url_for("view_messages"))
+
+    unread_messages = Message.query.filter(
+        Message.sender_id == friend.id,
+        Message.recipient_id == current_user.id,
+        Message.is_read == False,
+    )
+
+    for message in unread_messages:
+        message.is_read = True
+
+    other_unread_messages = Message.query.filter(
+        Message.recipient_id == current_user.id, Message.is_read == False
+    ).count()
+
+    db.session.commit()
+    return jsonify(
+        {"success": True, "other_unread_messages": other_unread_messages > 0}
+    )
+
+
+# Run the app
+if __name__ == "__main__":
+    socketio.run(app)

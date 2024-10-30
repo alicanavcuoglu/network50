@@ -1,0 +1,165 @@
+{% extends "layout.html" %} {% block title %}Messages{% endblock %} {% block
+main %}
+<div class="d-flex align-items-center justify-content-between gap-3">
+	<h1>Messages</h1>
+	<a href="/messages/new" class="btn btn-primary">
+		<i class="fa-solid fa-plus"></i>
+		Message
+	</a>
+</div>
+<ul class="list-group mt-3" id="messages-list">
+	{% for message in messages %} {% set target_user = message.sender if
+	current_user.id == message.recipient_id else message.recipient %}
+	<a
+		id="message-{{ target_user.id }}"
+		data-user-id="{{ target_user.id }}"
+		href="/messages/{{ target_user.username }}"
+		class="list-group-item list-group-item-action {{ 'not-read' if (message.sender_id != current_user.id) and (message.is_read == False) else '' }}">
+		<div class="d-flex align-items-start gap-2 py-2">
+			<div class="d-flex align-items-start">
+				<img
+					src="{{ target_user.image if target_user.image else url_for('static', filename='placeholder.jpg')}}"
+					alt="{{ target_user.username }}"
+					class="avatar md" />
+			</div>
+			<div
+				class="d-flex flex-column flex-grow-1 ms-2 margin-t-2 text-black">
+				<div
+					class="d-flex align-items-center justify-content-between gap-2">
+					<div class="position-relative message-header">
+						<h4 class="fs-6 mb-1">
+							{{ target_user.name }} {{ target_user.surname }}
+						</h4>
+						{% if (message.sender_id != current_user.id) and
+						(message.is_read == False) %}
+						<div class="unread-indicator">
+							<span
+								class="position-absolute ms-2 mt-1 top-0 start-100 translate-middle p-1 bg-warning border border-light rounded-circle">
+								<span class="visually-hidden"
+									>New messages</span
+								>
+							</span>
+						</div>
+						{% endif %}
+					</div>
+					<span
+						class="text-muted text-xs fw-light message-time"
+						data-bs-toggle="tooltip"
+						data-bs-placement="bottom"
+						title="{{message.created_at}}"
+						>{{ message.created_at | message_time }}</span
+					>
+				</div>
+				<p class="message-preview text-muted mb-1">
+					{{ message.content }}
+				</p>
+			</div>
+		</div>
+	</a>
+	{% endfor %}
+</ul>
+
+<script>
+	document.addEventListener("DOMContentLoaded", function () {
+		// Socket initialization if not initialized
+		if (typeof socket === "undefined") {
+			socket = io(); // Initialize socket if it's not defined
+			console.log("Socket initialized");
+		}
+
+		socket.on("receive_message", function (data) {
+			// Find the message container for this user
+			const messageContainer = document.querySelector(
+				`#message-${data.sender_id}`
+			);
+
+			if (messageContainer) {
+				// Update existing conversation
+				updateConversation(messageContainer, data);
+			} else {
+				// Create new conversation entry
+				createNewConversation(data);
+			}
+
+			// Move conversation to top
+			moveToTop(
+				messageContainer ||
+					document.querySelector(`#message-${data.sender_id}`)
+			);
+		});
+	});
+
+	function updateConversation(container, data) {
+		// Update message preview
+		const preview = container.querySelector(".message-preview");
+		preview.textContent = data.content;
+
+		// Update timestamp
+		const timestamp = container.querySelector(".message-time");
+		timestamp.textContent = data.created_at
+		timestamp.title = data.created_at_iso;
+
+		// Add unread indicator if not exists
+		const header = container.querySelector(".message-header");
+		if (!header.querySelector(".unread-indicator")) {
+			const indicator = document.createElement("div");
+			indicator.className = "unread-indicator";
+			indicator.innerHTML = `
+            <span class="position-absolute ms-2 mt-1 top-0 start-100 translate-middle p-1 bg-warning border border-light rounded-circle">
+                <span class="visually-hidden">New messages</span>
+            </span>
+        `;
+			header.appendChild(indicator);
+		}
+
+		// Add not-read class
+		container.classList.add("not-read");
+	}
+
+	function createNewConversation(data) {
+		const messagesList = document.getElementById("messages-list");
+		const newMessage = document.createElement("a");
+		newMessage.id = `message-${data.sender_id}`;
+		newMessage.href = `/messages/${data.sender_username}`;
+		newMessage.className =
+			"list-group-item list-group-item-action not-read";
+		newMessage.setAttribute("data-user-id", data.sender_id);
+
+		newMessage.innerHTML = `
+        <div class="d-flex align-items-start gap-2 py-2">
+            <div class="d-flex align-items-start">
+                <img src="${data.sender_image || "/static/placeholder.jpg"}" 
+                     alt="${data.sender_username}" 
+                     class="avatar md" />
+            </div>
+            <div class="d-flex flex-column flex-grow-1 ms-2 margin-t-2 text-black">
+                <div class="d-flex align-items-center justify-content-between gap-2">
+                    <div class="position-relative message-header">
+                        <h4 class="fs-6 mb-1">${data.sender_name}</h4>
+                        <div class="unread-indicator">
+                            <span class="position-absolute ms-2 mt-1 top-0 start-100 translate-middle p-1 bg-warning border border-light rounded-circle">
+                                <span class="visually-hidden">New messages</span>
+                            </span>
+                        </div>
+                    </div>
+                    <span class="text-muted text-xs fw-light message-time"
+                          data-bs-toggle="tooltip"
+                          data-bs-placement="bottom"
+                          title="${data.created_at_iso}">
+                        ${data.created_at}
+                    </span>
+                </div>
+                <p class="message-preview text-muted mb-1">${data.content}</p>
+            </div>
+        </div>
+    `;
+
+		messagesList.insertBefore(newMessage, messagesList.firstChild);
+	}
+
+	function moveToTop(element) {
+		const parent = element.parentNode;
+		parent.insertBefore(element, parent.firstChild);
+	}
+</script>
+{% endblock %}

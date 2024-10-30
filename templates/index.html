@@ -1,193 +1,203 @@
-{% extends "layout.html" %}
-{% import "components/post.html" as postings %}
-
-{% block title %}
-Homepage
-{% endblock %}
-
-{% block main %}
+{% extends "layout.html" %} {% import "components/post.html" as postings %} {%
+block title %} Homepage {% endblock %} {% block main %}
 
 <!-- TABS -->
 <div
-  class="list-group d-flex flex-row text-center overflow-x-auto bg-light list-group-flush account-settings-links border-bottom mb-3">
-  <a href="/" class="list-group-item list-group-item-action active">For You</a>
-  <a href="/friends" class="list-group-item list-group-item-action">Friends</a>
+	class="list-group d-flex flex-row text-center overflow-x-auto bg-light list-group-flush account-settings-links border-bottom mb-3">
+	<a href="/" class="list-group-item list-group-item-action active"
+		>For You</a
+	>
+	<a href="/friends" class="list-group-item list-group-item-action"
+		>Friends</a
+	>
 </div>
 
 <h1>I will not climb a ladder</h1>
-{{ postings.create_post(current_user) }}
-
-{% for post in posts %}
-{{ postings.post(post, current_user) }}
-{% endfor %}
+{{ postings.create_post(current_user) }} {% for post in posts %} {{
+postings.post(post, current_user) }} {% endfor %}
 
 <script>
-  // Like post
-  document.querySelectorAll('.like-btn').forEach((likeBtn) => {
-    const postId = likeBtn.getAttribute('data-post-id');
+	// Like post
+	document.querySelectorAll(".like-btn").forEach((likeBtn) => {
+		const postId = likeBtn.getAttribute("data-post-id");
 
-    likeBtn.addEventListener('click', () => {
-      fetch(`/like/${postId}`, { method: "POST" })
-        .then(response => response.json())
-        .then(data => {
-          // Update like count
-          document.querySelector(`.like-count-${postId}`).textContent = `${data.likes} like${data.likes != 1 ? "s" : ""}`;
+		likeBtn.addEventListener("click", () => {
+			fetch(`/like/${postId}`, { method: "POST" })
+				.then((response) => response.json())
+				.then((data) => {
+					// Update like count
+					document.querySelector(
+						`.like-count-${postId}`
+					).textContent = `${data.likes} like${
+						data.likes != 1 ? "s" : ""
+					}`;
 
-          if (data.isLiked) {
-            // likeBtn.textContent = "Unlike"
-            likeBtn.classList.add("active")
-          } else {
-            // likeBtn.textContent = "Like"
-            likeBtn.classList.remove("active")
-          }
+					if (data.isLiked) {
+						// likeBtn.textContent = "Unlike"
+						likeBtn.classList.add("active");
+					} else {
+						// likeBtn.textContent = "Like"
+						likeBtn.classList.remove("active");
+					}
+				})
+				.catch((error) => {
+					console.error("Error:", error);
+				});
+		});
+	});
 
-        })
-        .catch(error => {
-          console.error('Error:', error);
-        });
-    });
-  })
+	// Like comment
+	document.querySelectorAll(".comment-like-btn").forEach((likeBtn) => {
+		const commentId = likeBtn
+			.closest(".comment")
+			.getAttribute("data-comment-id");
 
-  // Like comment
-  document.querySelectorAll('.comment-like-btn').forEach((likeBtn) => {
-    const commentId = likeBtn.closest('.comment').getAttribute('data-comment-id');
-    
-    likeBtn.addEventListener('click', () => {
-      fetch(`/like/comment/${commentId}`, { method: "POST" })
-        .then(response => response.json())
-        .then(data => {
-          // Display updated like count
-          document.querySelector(`.comment-like-count-${commentId}`).textContent = String(data.likes)
+		likeBtn.addEventListener("click", () => {
+			fetch(`/like/comment/${commentId}`, { method: "POST" })
+				.then((response) => response.json())
+				.then((data) => {
+					// Display updated like count
+					document.querySelector(
+						`.comment-like-count-${commentId}`
+					).textContent = String(data.likes);
 
-          if (data.isLiked) {
-            likeBtn.textContent = "Unlike"
-            likeBtn.classList.add("active")
-          } else {
-            likeBtn.textContent = "Like"
-            likeBtn.classList.remove("active")
-          }
+					if (data.isLiked) {
+						likeBtn.textContent = "Unlike";
+						likeBtn.classList.add("active");
+					} else {
+						likeBtn.textContent = "Like";
+						likeBtn.classList.remove("active");
+					}
+				})
+				.catch((error) => {
+					console.error("Error:", error);
+				});
+		});
+	});
 
-        })
-        .catch(error => {
-          console.error('Error:', error);
-        });
-    });
-  })
+	// Add comment
+	document.querySelectorAll(".add-comment").forEach((addCommentBtn) => {
+		addCommentBtn.addEventListener("click", () => {
+			const post = addCommentBtn.closest(".post");
+			const postId = post.getAttribute("data-post-id");
 
-  // Add comment
-  document.querySelectorAll(".add-comment").forEach((addCommentBtn) => {
-    addCommentBtn.addEventListener('click', () => {
-      const post = addCommentBtn.closest('.post');
-      const postId = post.getAttribute("data-post-id");
+			const commentInput = post.querySelector(".comment-input");
 
-      const commentInput = post.querySelector('.comment-input');
+			if (commentInput.value) {
+				fetch(`/comment/${postId}`, {
+					method: "POST",
+					body: JSON.stringify(commentInput.value),
+					headers: {
+						"Content-Type": "application/json",
+					},
+				})
+					.then((response) => response.json())
+					.then((data) => location.reload())
+					.catch((error) => {
+						console.error("Error:", error);
+					});
+			}
+		});
+	});
 
-      if (commentInput.value) {
-        fetch(`/comment/${postId}`, {
-          method: "POST",
-          body: JSON.stringify(commentInput.value),
-          headers: {
-            "Content-Type": "application/json"
-          }
-        })
-          .then(response => response.json())
-          .then(data => location.reload())
-          .catch(error => {
-            console.error('Error:', error);
-          });
-      }
-    });
-  });
+	// Load more comments
+	document.querySelectorAll(".load-more-comments").forEach((loadBtn) => {
+		loadBtn.addEventListener("click", () => {
+			const postId = loadBtn.getAttribute("data-post-id");
+			let page = parseInt(loadBtn.getAttribute("data-page"));
 
-  // Load more comments
-  document.querySelectorAll('.load-more-comments').forEach((loadBtn) => {
-    loadBtn.addEventListener('click', () => {
-      const postId = loadBtn.getAttribute('data-post-id');
-      let page = parseInt(loadBtn.getAttribute('data-page'));
-
-      if (postId) {
-        fetch(`/post/${postId}/comments?page=${page}`)
-          .then(response => response.json())
-          .then((data) => {
-            // 
-            if (data.comments.length > 0) {
-              data.comments.forEach((comment) => {
-                const commentDiv = document.createElement('div');
-                commentDiv.classList.add('comment');
-                commentDiv.innerHTML = `
+			if (postId) {
+				fetch(`/post/${postId}/comments?page=${page}`)
+					.then((response) => response.json())
+					.then((data) => {
+						//
+						if (data.comments.length > 0) {
+							data.comments.forEach((comment) => {
+								const commentDiv =
+									document.createElement("div");
+								commentDiv.classList.add("comment");
+								commentDiv.innerHTML = `
                   <a href="/profiles/${comment.user.username}"><img
-                    src="${comment.user.image || '/static/placeholder.jpg'}"
-                    alt="${comment.user.username}" class="avatar sm margin-t-2">
+                    src="${comment.user.image || "/static/placeholder.jpg"}"
+                    alt="${comment.user.username}" class="avatar xs margin-t-2">
                   </a>
                   <div class="d-flex flex-column align-items-baseline">
                     <div class="comment-span text-break">
-                      <a href="/profiles/${comment.user.username}" class="text-decoration-none text-secondary">
-                        <strong>${comment.user.name} ${comment.user.surname}</strong>
+                      <a href="/profiles/${
+							comment.user.username
+						}" class="text-decoration-none text-secondary">
+                        <strong>${comment.user.name} ${
+									comment.user.surname
+								}</strong>
                       </a>
-                      <span class="text-secondary lh-sm small">${comment.content}</span>
+                      <span class="text-secondary lh-sm small">${
+							comment.content
+						}</span>
                     </div>
                     <span class="text-muted text-xs fw-light cursor-pointer" data-bs-toggle="tooltip" data-bs-placement="bottom"
-                      title="${comment.created_at_iso}">${comment.created_at}</span>
+                      title="${comment.created_at_iso}">${
+									comment.created_at
+								}</span>
                   </div>
-                  ${comment.own_post ? '<button class="delete-btn btn btn-sm margin-t-2 btn-outline-danger flex-shrink-0" ><i class="fa-solid fa-trash"></i></button>' : ''}
-                    `
-                loadBtn.previousElementSibling.appendChild(commentDiv)
-              });
+                  ${
+						comment.own_post
+							? '<button class="delete-btn btn btn-sm margin-t-2 btn-outline-danger flex-shrink-0" ><i class="fa-solid fa-trash"></i></button>'
+							: ""
+					}
+                    `;
+								loadBtn.previousElementSibling.appendChild(
+									commentDiv
+								);
+							});
 
-              page++;
-              loadBtn.setAttribute('data-page', page);
+							page++;
+							loadBtn.setAttribute("data-page", page);
 
-              // If no more comments, hide button
-              if (!data.has_next) {
-                loadBtn.style.display = 'none';
-              }
-            }
-          })
-          .catch(error => {
-            console.error('Error:', error)
-          });
-      }
-    });
-  });
+							// If no more comments, hide button
+							if (!data.has_next) {
+								loadBtn.style.display = "none";
+							}
+						}
+					})
+					.catch((error) => {
+						console.error("Error:", error);
+					});
+			}
+		});
+	});
 
-  // Delete post
-  document.querySelectorAll(".delete-btn").forEach((deleteBtn) => {
-    deleteBtn.addEventListener('click', () => {
-      const modal = deleteBtn.closest('.modal');
-      const postId = modal.getAttribute("data-post-id");
+	// Delete post
+	document.querySelectorAll(".delete-btn").forEach((deleteBtn) => {
+		deleteBtn.addEventListener("click", () => {
+			const modal = deleteBtn.closest(".modal");
+			const postId = modal.getAttribute("data-post-id");
 
-      fetch(`/post/delete/${postId}`, {
-        method: "DELETE",
-      })
-        .then(response => response.json())
-        .then(data => location.reload())
-        .catch(error => {
-          console.error('Error:', error);
-        });
-    })
-  });
- 
-  // Delete comment
-  document.querySelectorAll(".delete-comment-btn").forEach((deleteBtn) => {
-    deleteBtn.addEventListener('click', () => {
-      const comment = deleteBtn.closest('.comment');
-      const commentId = comment.getAttribute("data-comment-id");
+			fetch(`/post/delete/${postId}`, {
+				method: "DELETE",
+			})
+				.then((response) => response.json())
+				.then((data) => location.reload())
+				.catch((error) => {
+					console.error("Error:", error);
+				});
+		});
+	});
 
-      fetch(`/comment/delete/${commentId}`, {
-        method: "DELETE",
-      })
-        .then(response => response.json())
-        .then(data => location.reload())
-        .catch(error => {
-          console.error('Error:', error);
-        });
-    })
-  });
+	// Delete comment
+	document.querySelectorAll(".delete-comment-btn").forEach((deleteBtn) => {
+		deleteBtn.addEventListener("click", () => {
+			const comment = deleteBtn.closest(".comment");
+			const commentId = comment.getAttribute("data-comment-id");
+
+			fetch(`/comment/delete/${commentId}`, {
+				method: "DELETE",
+			})
+				.then((response) => response.json())
+				.then((data) => location.reload())
+				.catch((error) => {
+					console.error("Error:", error);
+				});
+		});
+	});
 </script>
 {% endblock %}
-<!-- // document.getElementById('share-post').addEventListener('click', () => {
-//   console.log("click")
-//   const shareText = document.getElementById('share-text').value;
-//   alert(`Shared: ${shareText}`); // This is just a placeholder for actual sharing logic
-//   $('#shareModal').modal('hide'); // Close modal after sharing
-// }); -->

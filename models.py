@@ -2,12 +2,45 @@ from datetime import datetime, timezone
 from typing import List
 
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import Boolean, DateTime, Integer, String, Text, ForeignKey
+from sqlalchemy import (
+    Boolean,
+    Column,
+    DateTime,
+    Integer,
+    String,
+    Table,
+    Text,
+    ForeignKey,
+)
 from sqlalchemy.sql import func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 
 db = SQLAlchemy()
+
+# Association table for friends
+friends_table = Table(
+    "friends",
+    db.Model.metadata,
+    Column("user_id", Integer, ForeignKey("user.id")),
+    Column("friend_id", Integer, ForeignKey("user.id")),
+)
+
+# Association table for pending friend requests
+pending_requests_table = Table(
+    "pending_requests",
+    db.Model.metadata,
+    Column("user_id", Integer, ForeignKey("user.id")),
+    Column("pending_id", Integer, ForeignKey("user.id")),
+)
+
+# Association table for received friend requests
+received_requests_table = Table(
+    "received_requests",
+    db.Model.metadata,
+    Column("user_id", Integer, ForeignKey("user.id")),
+    Column("request_id", Integer, ForeignKey("user.id")),
+)
 
 
 # User model
@@ -29,9 +62,32 @@ class User(db.Model):
     is_completed: Mapped[bool] = mapped_column(Boolean, default=False)
     is_public: Mapped[bool] = mapped_column(Boolean, default=True)
 
-    # Sent friend requests
-    # Received friend requests
-    # Friends
+    # Many-to-Many relationship for friends
+    friends: Mapped[List["User"]] = relationship(
+        "User",
+        secondary=friends_table,
+        primaryjoin=id == friends_table.c.user_id,
+        secondaryjoin=id == friends_table.c.friend_id,
+        backref="friends_with",
+    )
+
+    # Many-to-Many relationship for pending friend requests
+    pending_requests: Mapped[List["User"]] = relationship(
+        "User",
+        secondary=pending_requests_table,
+        primaryjoin=id == pending_requests_table.c.user_id,
+        secondaryjoin=id == pending_requests_table.c.pending_id,
+        backref="pending_from",
+    )
+
+    # Many-to-Many relationship for received friend requests
+    received_requests: Mapped[List["User"]] = relationship(
+        "User",
+        secondary=received_requests_table,
+        primaryjoin=id == received_requests_table.c.user_id,
+        secondaryjoin=id == received_requests_table.c.request_id,
+        backref="received_from",
+    )
 
     posts: Mapped[List["Post"]] = relationship(
         back_populates="user", cascade="all, delete"
@@ -134,3 +190,23 @@ class Like(db.Model):
 
     def __repr__(self) -> str:
         return f"<Like {self.id} by User {self.user_id}>"
+
+
+# Message model
+class Message(db.Model):
+    id: Mapped[int] = mapped_column(primary_key=True)
+    sender_id: Mapped[int] = mapped_column(ForeignKey("user.id"), nullable=False)
+    recipient_id: Mapped[int] = mapped_column(ForeignKey("user.id"), nullable=False)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
+    is_read: Mapped[bool] = mapped_column(Boolean, default=False)
+
+    sender: Mapped["User"] = relationship(
+        foreign_keys=[sender_id], backref="sent_messages"
+    )
+    recipient: Mapped["User"] = relationship(
+        foreign_keys=[recipient_id], backref="received_messages"
+    )
+
+    def __repr__(self):
+        return f"<Message {self.id} from {self.sender_id} to {self.recipient_id}>"
