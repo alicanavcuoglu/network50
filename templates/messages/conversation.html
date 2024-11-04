@@ -18,7 +18,7 @@
 		</div>
 
 		<!-- Body (messages) -->
-		<div class="card-body">
+		<div class="card-body conversation-body">
 			{% if has_more %}
 			<div class="d-flex align-items-center justify-content-center">
 				<button class="btn btn-outline-success btn-sm" id="loadMore">
@@ -84,8 +84,8 @@
 	// When DOM Loaded
 	document.addEventListener("DOMContentLoaded", function () {
 		// Scroll to bottom to display latest messages
-		const cardBody = document.querySelector(".card-body");
-		cardBody.scrollTop = cardBody.scrollHeight;
+		const convBody = document.querySelector(".conversation-body");
+		convBody.scrollTop = convBody.scrollHeight;
 
 		// Update read status
 		updateReadStatus();
@@ -181,8 +181,8 @@
 				messageContainer.prepend(messageDiv);
 			} else {
 				messageContainer.appendChild(messageDiv);
-				const cardBody = document.querySelector(".card-body");
-				cardBody.scrollTop = cardBody.scrollHeight;
+				const convBody = document.querySelector(".conversation-body");
+				convBody.scrollTop = convBody.scrollHeight;
 			}
 		}
 

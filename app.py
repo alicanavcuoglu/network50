@@ -32,17 +32,41 @@ from config import Config
 from events import socketio, connected_users
 from helpers import (
     array_to_str,
+    create_notification_link,
+    create_notification_message,
     format_message_time,
     format_time_ago,
-    has_unread_messages,
     login_required,
     logout_required,
     not_found,
     upload,
     validate_image,
 )
-from models import Comment, Like, Message, Post, User, db
-from queries import get_conversation, get_friends, get_latest_conversations
+from models import (
+    Comment,
+    Like,
+    Message,
+    Notification,
+    NotificationEnum,
+    Post,
+    User,
+    db,
+)
+from notifications import (
+    create_notification,
+    emit_notification,
+    get_all_unread_notifications,
+    get_next_notification,
+    get_notifications,
+    get_unread_notifications,
+    mark_as_read,
+)
+from queries import (
+    get_conversation,
+    get_friends,
+    get_latest_conversations,
+    has_unread_messages,
+)
 
 load_dotenv()
 
@@ -102,7 +126,9 @@ def unauthorized():
     return render_template("unauthorized.html")
 
 
-# Register custom filter
+""" Register custom filters """
+
+
 @app.template_filter("time_ago")
 def time_ago_filter(dt):
     return format_time_ago(dt)
@@ -111,6 +137,16 @@ def time_ago_filter(dt):
 @app.template_filter("message_time")
 def message_time_filter(dt):
     return format_message_time(dt)
+
+
+@app.template_filter("notification_message")
+def notification_message_converter(notification):
+    return create_notification_message(notification)
+
+
+@app.template_filter("notification_link")
+def notification_link_converter(notification):
+    return create_notification_link(notification)
 
 
 @app.before_request
@@ -125,6 +161,20 @@ def load_unread_message_status():
             g.has_unread_messages = False
     else:
         g.has_unread_messages = False
+
+
+@app.before_request
+def load_unread_notifications():
+    user_id = session.get("user_id")
+
+    if user_id:
+        current_user = User.query.get(user_id)
+        if current_user:
+            g.unread_notifications = get_unread_notifications(current_user.id)
+        else:
+            g.unread_notifications = []
+    else:
+        g.unread_notifications = None
 
 
 # @app.route("/email")
@@ -552,13 +602,31 @@ def create_post():
 @app.route("/post/<id>/reshare", methods=["POST"])
 @login_required
 def reshare_post(id):
+    current_user = db.get_or_404(User, session["user_id"])
     parent_post = Post.query.get_or_404(id)
     parent_post.shares += 1
     content = request.form["content"]
+
     post = Post(content=content, parent_id=parent_post.id, user_id=session["user_id"])
-    # TODO: Create a notification for original_post user
     db.session.add(post)
+    db.session.flush()
+
+    # Create a notification for original_post user
+    if current_user.id != parent_post.user_id:
+        notification = create_notification(
+            recipient_id=parent_post.user_id,
+            post_id=post.id,
+            sender_id=session["user_id"],
+            notification_type=NotificationEnum.POST_SHARE,
+        )
+
     db.session.commit()
+
+    # Emitting notification before commit creates error, took me an hour to debug
+    if current_user.id != parent_post.user_id:
+        # Emit notification with SocketIO
+        emit_notification(notification)
+
     return redirect(url_for("index"))
 
 
@@ -587,11 +655,11 @@ def delete_post(id):
 @app.route("/like/<id>", methods=["POST"])
 @login_required
 def like_post(id):
-    user = db.get_or_404(User, session["user_id"])
+    current_user = db.get_or_404(User, session["user_id"])
     post = db.get_or_404(Post, id)
 
     # Convert liked posts to array
-    like = Like.query.filter_by(user_id=user.id, post_id=post.id).first()
+    like = Like.query.filter_by(user_id=current_user.id, post_id=post.id).first()
 
     # Check if the post is already liked by the user
     if like:
@@ -600,14 +668,25 @@ def like_post(id):
         is_liked = False
     else:
         # Like the post
-        new_like = Like(user_id=user.id, post_id=post.id)
+        new_like = Like(user_id=current_user.id, post_id=post.id)
         db.session.add(new_like)
         is_liked = True
 
-    # TODO: Create a notification for post user
+    if current_user.id != post.user_id and not like:
+        notification = create_notification(
+            recipient_id=post.user_id,
+            post_id=post.id,
+            sender_id=current_user.id,
+            notification_type=NotificationEnum.POST_LIKE,
+        )
 
-    # Update the user's liked posts and the post's like count
+    # Update the user's liked posts and the post's like count, also create notification
     db.session.commit()
+
+    if current_user.id != post.user_id and not like:
+        # Emit notification with SocketIO
+        emit_notification(notification)
+
     like_count = len(post.likes)
 
     return jsonify({"likes": like_count, "isLiked": is_liked})
@@ -617,27 +696,40 @@ def like_post(id):
 @app.route("/like/comment/<id>", methods=["POST"])
 @login_required
 def like_comment(id):
-    user = db.get_or_404(User, session["user_id"])
+    current_user = db.get_or_404(User, session["user_id"])
     comment = db.get_or_404(Comment, id)
 
-    # Convert liked posts to array
-    like = Like.query.filter_by(user_id=user.id, comment_id=comment.id).first()
+    # Liked comments
+    like = Like.query.filter_by(user_id=current_user.id, comment_id=comment.id).first()
 
-    # Check if the post is already liked by the user
+    # Check if the comment is already liked by the user
     if like:
-        # Unlike the post if already liked
+        # Unlike the comment if already liked
         db.session.delete(like)
         is_liked = False
     else:
-        # Like the post
-        new_like = Like(user_id=user.id, comment_id=comment.id)
+        # Like the comment
+        new_like = Like(user_id=current_user.id, comment_id=comment.id)
         db.session.add(new_like)
         is_liked = True
 
-    # TODO: Create a notification for comment's user
+    # Create a notification for comment's user
+    if current_user.id != comment.user_id:
+        notification = create_notification(
+            recipient_id=comment.user_id,
+            sender_id=current_user.id,
+            comment_id=comment.id,
+            post_id=comment.post_id,
+            notification_type=NotificationEnum.COMMENT_LIKE,
+        )
 
     # Update the user's liked posts and the post's like count
     db.session.commit()
+
+    if current_user.id != comment.user_id:
+        # Emit notification with SocketIO
+        emit_notification(notification)
+
     like_count = len(comment.likes)
 
     return jsonify({"likes": like_count, "isLiked": is_liked})
@@ -648,16 +740,29 @@ def like_comment(id):
 def comment_post(id):
     content = request.json
 
-    user = db.get_or_404(User, session["user_id"])
+    current_user = db.get_or_404(User, session["user_id"])
     post = db.get_or_404(Post, id)
 
     # Create comment
-    comment = Comment(user_id=user.id, post_id=post.id, content=content)
-
-    # TODO: Create a notification for post user
-
+    comment = Comment(user_id=current_user.id, post_id=post.id, content=content)
     db.session.add(comment)
+    db.session.flush()
+
+    # Create a notification for post user
+    if current_user.id != post.user_id:
+        notification = create_notification(
+            recipient_id=post.user_id,
+            sender_id=current_user.id,
+            comment_id=comment.id,
+            post_id=post.id,
+            notification_type=NotificationEnum.POST_COMMENT,
+        )
+
     db.session.commit()
+
+    if current_user.id != post.user_id:
+        # Emit notification with SocketIO
+        emit_notification(notification)
 
     comment_data = {
         "id": comment.id,
@@ -728,7 +833,7 @@ def load_more_comments(id):
 
 
 # Requests
-@app.route("/requests")
+@app.route("/friends/requests")
 @login_required
 def display_friend_requests():
     user = db.get_or_404(User, session["user_id"])
@@ -763,8 +868,8 @@ def send_friend_request(username):
         flash("Friend request already sent.", "info")
         return "", 200
 
+    # Accept the request if current user was already requested by the target user
     elif current_user in target_user.pending_requests:
-        # Accept the request if current user was already requested by the target user
         current_user.friends.append(target_user)
         target_user.friends.append(current_user)
 
@@ -772,9 +877,30 @@ def send_friend_request(username):
         current_user.received_requests.remove(target_user)
         target_user.pending_requests.remove(current_user)
 
-        # TODO: Send a notification
+        # Send a friend accept notification to target user
+        notification = create_notification(
+            recipient_id=target_user.id,
+            sender_id=current_user.id,
+            notification_type=NotificationEnum.FRIEND_ACCEPTED,
+        )
+
+        # Emit notification with SocketIO
+        emit_notification(notification)
+
+        # Update friend request notification to read if not read yet
+        unread_request = Notification.query.filter(
+            Notification.recipient_id == current_user.id,
+            Notification.sender_id == target_user.id,
+            Notification.notification_type == NotificationEnum.FRIEND_REQUEST.value,
+            Notification.is_read == False,
+        ).first()
+
+        # TODO: Test if this works seamlessly
+        if unread_request:
+            unread_request.is_read = True
 
         db.session.commit()
+
         flash(
             f"You are now friends with {target_user.name} {target_user.surname}.",
             "success",
@@ -784,9 +910,17 @@ def send_friend_request(username):
     current_user.pending_requests.append(target_user)
     target_user.received_requests.append(current_user)
 
-    # TODO: Send a notification
+    # Send a friend request notification to target user
+    notification = create_notification(
+        recipient_id=target_user.id,
+        sender_id=current_user.id,
+        notification_type=NotificationEnum.FRIEND_REQUEST,
+    )
 
     db.session.commit()
+
+    # Emit notification with SocketIO
+    emit_notification(notification)
 
     flash(
         f"Friend request sent to {target_user.name} {target_user.surname}.", "success"
@@ -813,7 +947,27 @@ def accept_friend_request(username):
     current_user.received_requests.remove(target_user)
     target_user.pending_requests.remove(current_user)
 
-    # TODO: Send a notification
+    # Send a notification
+    notification = create_notification(
+        recipient_id=target_user.id,
+        sender_id=current_user.id,
+        notification_type=NotificationEnum.FRIEND_ACCEPTED,
+    )
+
+    # Emit notification with SocketIO
+    emit_notification(notification)
+
+    # Update friend request notification to read if not read yet
+    unread_request = Notification.query.filter(
+        Notification.recipient_id == current_user.id,
+        Notification.sender_id == target_user.id,
+        Notification.notification_type == NotificationEnum.FRIEND_REQUEST.value,
+        Notification.is_read == False,
+    ).first()
+
+    # TODO: Test if this works seamlessly
+    if unread_request:
+        unread_request.is_read = True
 
     db.session.commit()
 
@@ -1028,6 +1182,71 @@ def mark_messages_as_read(username):
     return jsonify(
         {"success": True, "other_unread_messages": other_unread_messages > 0}
     )
+
+
+@app.route("/notifications")
+@login_required
+def notifications():
+    current_user = db.get_or_404(User, session["user_id"])
+    notifications = get_notifications(current_user.id)
+
+    return render_template("notifications.html", notifications=notifications)
+
+
+@app.route("/notifications/unread/all")
+@login_required
+def all_unread_notifications():
+    current_user = db.get_or_404(User, session["user_id"])
+    notifications = get_all_unread_notifications(current_user.id)
+    print(notifications)
+
+    return render_template("notifications-unread.html", notifications=notifications)
+
+
+@app.route("/notifications/unread")
+@login_required
+def unread_notifications():
+    current_user = db.get_or_404(User, session["user_id"])
+    notifications = get_unread_notifications(current_user.id)
+    return jsonify([n.to_dict() for n in notifications])
+
+
+@app.route("/notifications/<int:notification_id>/read", methods=["POST"])
+@login_required
+def mark_notification_read(notification_id):
+    notification = mark_as_read(notification_id, session["user_id"])
+
+    if not notification:
+        flash("Notification not found!", "error")
+        return jsonify({"status": "error", "message": "Notification not found"}), 404
+
+    return jsonify({"status": "success"})
+
+
+@app.route("/notifications/next-unread-notification", methods=["POST"])
+@login_required
+def next_unread_notification():
+    notifications = request.get_json()
+
+    next_notification = get_next_notification(session["user_id"], notifications)
+
+    if not next_notification:
+        return jsonify({"has_more": False}), 204
+
+    notification = next_notification.to_dict()
+
+    return jsonify(notification)
+
+
+@app.route("/notifications/mark-all-read", methods=["POST"])
+@login_required
+def mark_all_notifications_read():
+    current_user = db.get_or_404(User, session["user_id"])
+    Notification.query.filter_by(recipient_id=current_user.id, is_read=False).update(
+        {Notification.is_read: True}
+    )
+    db.session.commit()
+    return jsonify({"status": "success"})
 
 
 # Run the app

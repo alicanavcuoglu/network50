@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import List
 
@@ -6,6 +7,7 @@ from sqlalchemy import (
     Boolean,
     Column,
     DateTime,
+    Enum,
     Integer,
     String,
     Table,
@@ -14,6 +16,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.sql import func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+import enum
 
 
 db = SQLAlchemy()
@@ -210,3 +213,55 @@ class Message(db.Model):
 
     def __repr__(self):
         return f"<Message {self.id} from {self.sender_id} to {self.recipient_id}>"
+
+
+# Notification Enum
+class NotificationEnum(enum.Enum):
+    FRIEND_REQUEST = "friend_request"
+    FRIEND_ACCEPTED = "friend_accepted"
+    POST_LIKE = "post_like"
+    POST_COMMENT = "post_comment"
+    POST_SHARE = "post_share"
+    COMMENT_LIKE = "comment_like"
+
+
+class Notification(db.Model):
+    id: Mapped[int] = mapped_column(primary_key=True)
+    recipient_id: Mapped[int] = mapped_column(ForeignKey("user.id"), nullable=False)
+    sender_id: Mapped[int] = mapped_column(ForeignKey("user.id"), nullable=False)
+    notification_type: Mapped[NotificationEnum] = mapped_column(
+        # Modified with ChatGPT because I was getting Enum keys instead of Enum values
+        Enum(NotificationEnum, values_callable=lambda obj: [e.value for e in obj]),
+        nullable=False,
+    )
+
+    post_id: Mapped[int] = mapped_column(ForeignKey("post.id"), nullable=True)
+    comment_id: Mapped[int] = mapped_column(ForeignKey("comment.id"), nullable=True)
+
+    is_read: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
+
+    # Relationships
+    recipient: Mapped["User"] = relationship(
+        foreign_keys=[recipient_id], backref="received_notifications"
+    )
+    sender: Mapped["User"] = relationship(foreign_keys=[sender_id])
+    post: Mapped["Post"] = relationship()
+    comment: Mapped["Comment"] = relationship()
+
+    def __repr__(self):
+        return f"<Notification {self.id} from {self.sender_id} to {self.recipient_id}>"
+
+    def to_dict(self):
+        """Convert notification to dictionary for JSON serialization"""
+        return {
+            "id": self.id,
+            "type": self.notification_type.value,
+            "sender_name": f"{self.sender.name} {self.sender.surname}",
+            "sender_username": self.sender.username,
+            "sender_image": self.sender.image,
+            "created_at": self.created_at.isoformat(),
+            "is_read": self.is_read,
+            "post_id": self.post_id,
+            "comment_id": self.comment_id,
+        }

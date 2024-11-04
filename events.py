@@ -40,7 +40,7 @@ def handle_send_message_event(data):
         message = Message(
             content=content, recipient_id=target_user.id, sender_id=current_user.id
         )
-        # TODO: Add notification
+
         db.session.add(message)
         db.session.commit()
 
@@ -80,4 +80,3 @@ def handle_send_message_event(data):
 
     else:
         emit("message_error", {"error": "Friend not found"})
-

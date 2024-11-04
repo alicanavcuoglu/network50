@@ -12,10 +12,7 @@ from flask import (
     url_for,
 )
 from itsdangerous import URLSafeTimedSerializer
-from sqlalchemy import select
 from werkzeug.utils import secure_filename
-
-from models import User, db, Message
 
 
 def not_found():
@@ -97,14 +94,14 @@ def upload(image):
         ] or file_ext != validate_image(image.stream):
             flash("Please only upload an allowed image format.", "error")
             return redirect("/file")
-        image.save(os.path.join("static/avatars", str(session.get("user_id")) + file_ext))
+        image.save(
+            os.path.join("static/avatars", str(session.get("user_id")) + file_ext)
+        )
 
         return f"/{current_app.config["UPLOAD_AVATAR_PATH"]}/{str(session.get("user_id")) + file_ext}"
     else:
         for ext in current_app.config["UPLOAD_EXTENSIONS"]:
-            existing_file = (
-                f"{current_app.config["UPLOAD_AVATAR_PATH"]}/{session.get("user_id")}{ext}"
-            )
+            existing_file = f"{current_app.config["UPLOAD_AVATAR_PATH"]}/{session.get("user_id")}{ext}"
             if os.path.exists(existing_file):
                 os.remove(existing_file)
                 flash("Your profile picture was deleted.", "success")
@@ -168,13 +165,39 @@ def format_message_time(dt: datetime):
         return dt.strftime("%b %d, %Y")
 
 
-# Return unread messages
-def has_unread_messages(user_id):
-    # Count the unread messages for the current user
-    unread_count = db.session.execute(
-        select(Message.id).where(
-            (Message.recipient_id == user_id) & (Message.is_read == False)
-        )
-    ).scalar() or 0
+def create_notification_message(notification):
+    sender_name = f"{notification.sender.name} {notification.sender.surname}"
 
-    return unread_count > 0
+    match notification.notification_type.value:
+        case "friend_request":
+            return f"{sender_name} sent you a friend request"
+        case "friend_accepted":
+            return f"{sender_name} accepted your friend request"
+        case "post_like":
+            return f"{sender_name} liked your post"
+        case "post_comment":
+            return f"{sender_name} commented on your post"
+        case "post_share":
+            return f"{sender_name} shared your post"
+        case "comment_like":
+            return f"{sender_name} liked your comment"
+        case _:
+            return f"New notification from {sender_name}"
+
+
+def create_notification_link(notification):
+    match notification.notification_type.value:
+        case "friend_request":
+            return "/friends/requests"
+        case "friend_accepted":
+            return f"/profiles/{notification.sender.username}"
+        case "post_like":
+            return f"/posts/{notification.post_id}"
+        case "post_comment":
+            return f"/posts/{notification.post_id}#comment-{notification.comment_id}"
+        case "post_share":
+            return f"/posts/{notification.post_id}"
+        case "comment_like":
+            return f"/posts/{notification.post_id}#comment-{notification.comment_id}"
+        case _:
+            return "#"

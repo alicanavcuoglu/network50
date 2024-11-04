@@ -1,5 +1,5 @@
 from flask import jsonify
-from sqlalchemy import case, desc
+from sqlalchemy import case, desc, select
 from models import User, db, Message
 
 
@@ -70,3 +70,17 @@ def get_conversation(user_id, other_user_id):
 
 
 def start_conversation(): ...
+
+# Return unread messages
+def has_unread_messages(user_id):
+    # Count the unread messages for the current user
+    unread_count = (
+        db.session.execute(
+            select(Message.id).where(
+                (Message.recipient_id == user_id) & (Message.is_read == False)
+            )
+        ).scalar()
+        or 0
+    )
+
+    return unread_count > 0

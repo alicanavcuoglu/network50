@@ -110,18 +110,99 @@
 								<a class="nav-link" href="/groups">Groups</a>
 							</li>
 						</ul>
-						<ul class="navbar-nav ms-auto mt-2">
-							<form class="d-flex my-2 my-lg-0">
-								<input
-									class="form-control me-sm-2"
-									type="text"
-									placeholder="Search for people, groups" />
+						<ul class="navbar-nav align-items-center ms-auto gap-1">
+							<!-- Notifications -->
+							<div class="dropdown">
 								<button
-									class="btn btn-outline-success my-2 my-sm-0"
-									type="submit">
-									Search
+									class="btn btn-sm fs-5 text-muted position-relative"
+									type="button"
+									id="notificationsDropdown"
+									data-bs-toggle="dropdown"
+									aria-expanded="false">
+									<i class="fa-regular fa-bell"></i>
+									{% if g.unread_notifications %}
+									<span
+										class="position-absolute top-0 end-0 mt-2 translate-middle-y p-1 bg-danger border border-light rounded-circle">
+										<span class="visually-hidden"
+											>New notifications</span
+										>
+									</span>
+									{% endif %}
 								</button>
-							</form>
+								<ul
+									id="dropdown-menu"
+									class="dropdown-menu dropdown-menu-end"
+									onclick="event.stopPropagation()"
+									aria-labelledby="notificationsDropdown">
+									<li
+										class="d-flex align-items-center justify-content-between">
+										<h6
+											class="dropdown-header notification-header fs-6">
+											Notifications
+										</h6>
+										<button
+											class="btn btn-link text-muted dropdown-header notification-header"
+											onclick="markAllRead()">
+											Mark all as read
+										</button>
+									</li>
+									{% if g.unread_notifications %} {% for
+									notification in g.unread_notifications %}
+									<li
+										id="{{notification.id}}"
+										data-notification="{{notification.id}}">
+										<a
+											class="dropdown-item notification-item {{ 'unread' if not notification.is_read else '' }}"
+											href="{{ notification | notification_link }}"
+											onclick="markAsRead('{{notification.id}}', false)">
+											<img
+												src="{{ notification.sender.image if notification.sender.image else url_for('static', filename='placeholder.jpg') }}"
+												alt="{{ notification.sender.name }}"
+												class="avatar xs" />
+											<div>
+												<span class="notification-text">
+													{{ notification |
+													notification_message }}
+												</span>
+												<span
+													class="text-muted text-xs fw-light lh-1"
+													data-bs-toggle="tooltip"
+													data-bs-placement="bottom"
+													title="{{notification.created_at}}"
+													>{{ notification.created_at
+													| time_ago }}</span
+												>
+												<button
+													class="border-0 p-0 position-absolute top-50 end-0 translate-middle-y me-2 text-black bg-transparent"
+													data-bs-toggle="tooltip"
+													data-bs-placement="bottom"
+													title="Mark as read"
+													onclick="markAsRead('{{notification.id}}')">
+													<i
+														class="fa-regular fa-circle"
+														onmouseenter="this.className='fa-solid fa-circle'"
+														onmouseleave="this.className='fa-regular fa-circle'"></i>
+												</button>
+											</div>
+										</a>
+									</li>
+									{% endfor %} {% else %}
+									<li
+										class="d-flex align-items-center justify-content-center py-5">
+										<h6 class="fw-normal text-muted small">
+											No unread notifications.
+										</h6>
+									</li>
+									{% endif %}
+									<hr
+										class="dropdown-divider notification-divider" />
+									<a
+										class="dropdown-header notification-header text-center"
+										href="/notifications"
+										>All notifications</a
+									>
+								</ul>
+							</div>
 
 							<li class="nav-item dropdown">
 								<button
@@ -148,7 +229,7 @@
 									<li>
 										<a
 											class="dropdown-item"
-											href="/requests"
+											href="/friends/requests"
 											>Friend requests</a
 										>
 									</li>
@@ -224,56 +305,7 @@
 			integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo="
 			crossorigin="anonymous"></script>
 
-		<script>
-			// Declare the socket variable globally
-			let socket;
-
-			// Initialize socket if not already initialized
-			if (!socket) {
-				socket = io();
-			}
-
-			$(function () {
-				$('[data-bs-toggle="popover"]').popover();
-			});
-
-			// Remove notification badge from 'Messages' link when there are no more unread messages
-			socket.on("no_unread_messages", function () {
-				const unreadBadge = document.getElementById("unread-badge");
-				if (unreadBadge) {
-					unreadBadge.style.display = "none";
-				}
-			});
-
-			// Create notification badge for 'Messages' link when there are new messages
-			socket.on("new_unread_message", function () {
-				const unreadBadge = document.getElementById("unread-badge");
-
-				if (unreadBadge) return;
-
-				const unreadBadgeWrapper = document.getElementById(
-					"unread-badge-wrapper"
-				);
-
-				const newBadge = document.createElement("div");
-				newBadge.innerHTML = `
-				<!-- Larger screens -->
-				<span
-					class="d-none d-md-block position-absolute top-0 start-100 mt-2 translate-middle p-1 bg-danger border border-light rounded-circle">
-					<span class="visually-hidden"
-						>New messages</span
-					>
-				</span>
-				<!-- Mobile screens -->
-				<span
-					class="d-block d-md-none ms-1 p-1 bg-danger border border-light rounded-circle">
-					<span class="visually-hidden"
-						>New messages</span
-					>
-				</span>
-				`;
-				unreadBadgeWrapper.appendChild(newBadge);
-			});
-		</script>
+		<!-- All functions related to notifications, messages, socketIO -->
+		<script src="{{ url_for('static', filename='js/notifications.js') }}"></script>
 	</body>
 </html>

@@ -1,0 +1,75 @@
+{% extends "layout.html" %} {% from "components/post.html" import create_post %}
+{% block title %} Homepage {% endblock %} {% block main %}
+
+<!-- TABS -->
+<div
+	class="list-group d-flex flex-row text-center overflow-x-auto bg-light list-group-flush account-settings-links border-bottom mb-3">
+	<a
+		href="/notifications"
+		class="list-group-item list-group-item-action active"
+		>All notifications</a
+	>
+	<a
+		href="/notifications/unread/all"
+		class="list-group-item list-group-item-action"
+		>Unread Notifications</a
+	>
+</div>
+
+{% if notifications %}
+
+<div class="d-flex justify-content-end mb-3">
+	<button
+		class="btn btn-outline-secondary"
+		onclick="markAllRead()"
+		{% if not g.unread_notifications %}disabled{% endif %}>
+		Mark all as read
+	</button>
+</div>
+
+<ul class="list-group">
+	{% for notification in notifications %}
+	<li
+		id="{{notification.id}}"
+		data-notification="{{notification.id}}"
+		class="list-unstyled">
+		<a
+			class="list-group-item notification-item {{ 'unread' if not notification.is_read else '' }} p-3 border text-decoration-none"
+			href="{{ notification | notification_link }}"
+			onclick="markAsRead('{{notification.id}}', false)">
+			<img
+				src="{{ notification.sender.image if notification.sender.image else url_for('static', filename='placeholder.jpg') }}"
+				alt="{{ notification.sender.name }}"
+				class="avatar xs" />
+			<div>
+				<span class="notification-text">
+					{{ notification | notification_message }}
+				</span>
+				<span
+					class="text-muted text-xs fw-light lh-1"
+					data-bs-toggle="tooltip"
+					data-bs-placement="bottom"
+					title="{{notification.created_at}}"
+					>{{ notification.created_at | time_ago }}</span
+				>
+				<button
+					class="border-0 p-0 position-absolute top-50 end-0 translate-middle-y me-3 text-black bg-transparent"
+					data-bs-toggle="tooltip"
+					data-bs-placement="bottom"
+					title="Mark as read"
+					onclick="markAsRead('{{notification.id}}')">
+					<i
+						class="fa-regular fa-circle"
+						onmouseenter="this.className='fa-solid fa-circle'"
+						onmouseleave="this.className='fa-regular fa-circle'"></i>
+				</button>
+			</div>
+		</a>
+	</li>
+	{% endfor %}
+</ul>
+{% else %}
+<div class="d-flex align-items-center justify-content-center py-5">
+	<h2 class="text-muted">No notifications.</h2>
+</div>
+{% endif %} {% endblock %}

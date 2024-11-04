@@ -200,8 +200,62 @@ label.btn {
   line-height: 20px;
 }
 
-.card-body {
+.conversation-body {
   height: 600px;
   flex-grow: 1;
   overflow-y: auto;
+}
+
+#dropdown-menu {
+  min-width: none;
+  width: 20rem;
+  max-width: none;
+}
+
+.notification-item {
+  position: relative;
+  padding: .25rem 2rem .25rem .5rem;
+  gap: .5rem;
+  display: flex;
+  align-items: center;
+  font-size: .875rem;
+  color: rgb(45, 45, 45);
+  border-top: 1px solid #ddd;
+  border-bottom: 1px solid #ddd;
+
+}
+
+.notification-item:hover {
+  background-color: #e8e8e8;
+  -webkit-transition: background-color 100ms ease-in;
+  -ms-transition: background-color 100ms ease-in;
+  transition: background-color 100ms ease-in;
+}
+
+.notification-text {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  /* Limit to 2 lines */
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: normal;
+  color: black;
+}
+
+.notification-divider {
+  margin: 0;
+  margin-bottom: .25rem;
+}
+
+.notification-item.unread {
+  background-color: #ededed;
+}
+
+.notification-item.unread:hover {
+  background-color: #e8e8e8;
+}
+
+.notification-header {
+  padding: .5rem;
 }
