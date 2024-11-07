@@ -1,0 +1,8 @@
+{% extends "layout.html" %} {% import "components/post.html" as postings %} {% block title %} #{{tag}} Posts {% endblock %} {%
+block main %}
+<h1>Posts with #{{ tag }}</h1>
+
+{% if posts %} {% for post in posts %} {{ postings.post(post, current_user) }}
+{% endfor %}{% else %}
+<p>No posts found with #{{ tag }}</p>
+{% endif %} {% endblock %}

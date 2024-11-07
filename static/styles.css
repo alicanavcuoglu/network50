@@ -259,3 +259,16 @@ label.btn {
 .notification-header {
   padding: .5rem;
 }
+
+p > a {
+  text-decoration: none;
+}
+
+.navbar-toggler-icon {
+  width: 1.3rem;
+  height: 1.3rem;
+}
+
+.ps-search {
+  padding-left: 2.6rem;
+}

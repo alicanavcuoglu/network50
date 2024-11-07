@@ -1,5 +1,21 @@
 {% extends "layout.html" %} {% block title %} Profiles {% endblock %} {% block
 main %}
+<!-- SEARCH -->
+<div class="mb-3">
+	<form action="/profiles" method="get">
+		<div class="input-group">
+			<button
+				class="btn btn-outline-secondary"
+				type="submit">
+				<i class="fa-solid fa-magnifying-glass"></i>
+			</button>
+
+			<input type="text" name="q" class="form-control" placeholder="Search for people..." />
+		</div>
+	</form>
+</div>
+
+<!-- PROFILES -->
 <ul class="list-group">
 	{% for user in users %}
 	<a
@@ -106,7 +122,7 @@ main %}
 		id="removeFriend-{{ user.username }}"
 		aria-labelledby="removeFriendLabel-{{ user.username }}"
 		aria-hidden="true">
-		<div class="modal-dialog">
+		<div class="modal-dialog modal-dialog-centered">
 			<div class="modal-content">
 				<div class="container">
 					<div class="modal-header">
@@ -233,5 +249,16 @@ main %}
 				});
 		});
 	});
+
+	// Search with 'Enter'
+	document
+		.getElementById("message")
+		.addEventListener("keydown", function (e) {
+			// Check if the Enter key (key code 13) is pressed and there's no Shift key
+			if (e.key === "Enter" && !e.shiftKey) {
+				e.preventDefault(); // Prevent default Enter behavior (e.g., line break)
+				sendMessage();
+			}
+		});
 </script>
 {% endblock %}

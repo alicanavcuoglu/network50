@@ -1,211 +1,329 @@
 <!-- https://stackoverflow.com/questions/55841442/can-you-create-components-in-flask-jinja-to-insert-in-various-templates -->
 {% macro create_post(current_user) -%}
 <div class="card mx-auto w-">
-  <div class="card-body">
-    <a href="/profiles/{{ current_user.username }}"
-      class="d-flex align-items-center gap-2 mb-3 text-decoration-none text-secondary-emphasis">
-      <img src="{{current_user.image if current_user.image else url_for('static', filename='placeholder.jpg')}}"
-        alt="avatar" class="avatar sm">
-      <h2 class="fs-4">{{current_user.name}} {{current_user.surname}}</h2>
-    </a>
-    <form action="/post" method="post">
-      <textarea class="form-control mb-3" id="content" name="content" rows="4" placeholder="Write your post..."
-        required></textarea>
+	<div class="card-body">
+		<a
+			href="/profiles/{{ current_user.username }}"
+			class="d-flex align-items-center gap-2 mb-3 text-decoration-none text-secondary-emphasis">
+			<img
+				src="{{current_user.image if current_user.image else url_for('static', filename='placeholder.jpg')}}"
+				alt="avatar"
+				class="avatar sm" />
+			<h2 class="fs-4">{{current_user.name}} {{current_user.surname}}</h2>
+		</a>
+		<form action="/post" method="post">
+			<textarea
+				class="form-control mb-3"
+				id="content"
+				name="content"
+				rows="4"
+				placeholder="Write your post..."
+				required></textarea>
 
-      <button type="submit" class="btn btn-primary float-end">Post</button>
-    </form>
-  </div>
+			<button type="submit" class="btn btn-primary float-end">
+				Post
+			</button>
+		</form>
+	</div>
 </div>
-</form>
-{%- endmacro %}
-
-{% macro post(post, current_user) %}
+{%- endmacro %} {% macro post(post, current_user) %}
 <div class="post bg-white" data-post-id="{{post.id | string}}">
-  <div class="d-flex align-items-start justify-content-between">
-    <div class="d-flex align-items-center mb-3">
-      <a href="/profiles/{{post.user.username}}">
-        <img src="{{ post.user.image if post.user.image else url_for('static', filename='placeholder.jpg')}}"
-          alt="{{ post.user.username }}" class="avatar sm margin-t-2">
-      </a>
-      <div class="d-flex flex-column ms-2">
-        <a href="/profiles/{{post.user.username}}" class="text-decoration-none text-secondary-emphasis fw-medium">
-          <h4 class="mb-0 fs-6">{{ post.user.name }} {{ post.user.surname }}</h4>
-        </a>
-        <span class="text-muted text-xs fw-light" data-bs-toggle="tooltip" data-bs-placement="bottom"
-          title="{{post.created_at}}">{{ post.created_at | time_ago }}</span>
-      </div>
-    </div>
+	<div class="d-flex align-items-start justify-content-between">
+		<div class="d-flex align-items-center mb-3">
+			<a href="/profiles/{{post.user.username}}">
+				<img
+					src="{{ post.user.image if post.user.image else url_for('static', filename='placeholder.jpg')}}"
+					alt="{{ post.user.username }}"
+					class="avatar sm margin-t-2" />
+			</a>
+			<div class="d-flex flex-column ms-2">
+				<a
+					href="/profiles/{{post.user.username}}"
+					class="text-decoration-none text-secondary-emphasis fw-medium">
+					<h4 class="mb-0 fs-6">
+						{{ post.user.name }} {{ post.user.surname }}
+					</h4>
+				</a>
+				<span
+					class="text-muted text-xs fw-light"
+					data-bs-toggle="tooltip"
+					data-bs-placement="bottom"
+					title="{{post.created_at}}"
+					>{{ post.created_at | time_ago }}</span
+				>
+			</div>
+		</div>
 
-    <div class="d-flex align-items-center gap-3">
+		<div class="d-flex align-items-center gap-3">
+			<a href="/posts/{{ post.id }}" class="text-secondary-emphasis">
+				Go to post
+			</a>
 
-      <a href="/posts/{{ post.id }}" class="text-secondary-emphasis">
-        Go to post
-      </a>
+			{% if post.user_id == current_user.id %}
+			<button
+				type="button"
+				class="btn btn-danger btn-sm"
+				data-bs-toggle="modal"
+				data-bs-target="#deletePostModal-{{ post.id }}">
+				<i class="fas fa-trash"></i> Delete
+			</button>
+			{% endif %}
+		</div>
+	</div>
 
-      {% if post.user_id == current_user.id %}
-      <button type="button" class="btn btn-danger btn-sm" data-bs-toggle="modal"
-        data-bs-target="#deletePostModal-{{ post.id }}">
-        <i class="fas fa-trash"></i> Delete
-      </button>
-      {% endif %}
-    </div>
-  </div>
+	{% if post.parent_id %}
+	<p>{{ post.content | process_text | safe }}</p>
+	<div>
+		{% if post.original_post %}
+		<div class="parent-post">
+			<div class="d-flex align-items-start justify-content-between">
+				<div class="d-flex align-items-center mb-3">
+					<a href="/profiles/{{post.original_post.user.username}}">
+						<img
+							src="{{ post.original_post.user.image if post.original_post.user.image else url_for('static', filename='placeholder.jpg')}}"
+							alt="{{ post.original_post.user.username }}"
+							class="avatar sm margin-t-2" />
+					</a>
+					<div class="d-flex flex-column ms-2">
+						<a
+							href="/profiles/{{post.original_post.user.username}}"
+							class="text-decoration-none text-secondary-emphasis fw-medium">
+							<h4 class="mb-0 fs-6">
+								{{ post.original_post.user.name }} {{
+								post.original_post.user.surname }}
+							</h4>
+						</a>
+						<span
+							class="text-muted text-xs fw-light"
+							data-bs-toggle="tooltip"
+							data-bs-placement="bottom"
+							title="{{post.original_post.created_at}}"
+							>{{ post.original_post.created_at | time_ago
+							}}</span
+						>
+					</div>
+				</div>
+				<a
+					href="/posts/{{ post.original_post.id }}"
+					class="text-secondary-emphasis">
+					Go to post
+				</a>
+			</div>
+			<p>{{ post.original_post.content | process_text | safe }}</p>
+		</div>
+		{% else %}
+		<div class="alert alert-warning" role="alert">
+			The original post has been deleted.
+		</div>
+		{% endif %}
+	</div>
+	{% else %}
+	<p>{{ post.content | process_text | safe }}</p>
+	{% endif %}
 
-  {% if post.parent_id %}
-  <p>{{ post.content }}</p>
-  <div>
-    {% if post.original_post %}
-    <div class="parent-post">
-      <div class="d-flex align-items-start justify-content-between">
-        <div class="d-flex align-items-center mb-3">
-          <a href="/profiles/{{post.original_post.user.username}}">
-            <img
-              src="{{ post.original_post.user.image if post.original_post.user.image else url_for('static', filename='placeholder.jpg')}}"
-              alt="{{ post.original_post.user.username }}" class="avatar sm margin-t-2">
-          </a>
-          <div class="d-flex flex-column ms-2">
-            <a href="/profiles/{{post.original_post.user.username}}"
-              class="text-decoration-none text-secondary-emphasis fw-medium">
-              <h4 class="mb-0 fs-6">{{ post.original_post.user.name }} {{ post.original_post.user.surname }}</h4>
-            </a>
-            <span class="text-muted text-xs fw-light" data-bs-toggle="tooltip" data-bs-placement="bottom"
-              title="{{post.original_post.created_at}}">{{ post.original_post.created_at | time_ago }}</span>
-          </div>
-        </div>
-        <a href="/posts/{{ post.original_post.id }}" class="text-secondary-emphasis">
-          Go to post
-        </a>
-      </div>
-      <p>{{ post.original_post.content }}</p>
-    </div>
-    {% else %}
-    <div class="alert alert-warning" role="alert">
-      The original post has been deleted.
-    </div>
-    {% endif %}
-  </div>
-  {% else %}
-  <p>{{ post.content }}</p>
-  {% endif %}
+	<div class="my-3">
+		<span class="like-count-{{post.id | string}}"
+			>{{post.likes|length}} {{"likes" if post.likes|length != 1 else
+			"like"}}</span
+		>
+		<span class="comment-count-{{post.id | string}}"
+			>{{post.total_comments}} comments</span
+		>
+		<span class="share-count-{{post.id | string}}"
+			>{{post.shares}} shares</span
+		>
+	</div>
+	<div class="d-flex align-items-center gap-2 mb-3">
+		<!-- Likes -->
+		{% if post.is_liked_by_user(current_user.id) %}
+		<button
+			type="button"
+			class="btn btn-outline-success like-btn active"
+			data-post-id="{{post.id | string}}">
+			Like
+		</button>
+		{% else %}
+		<button
+			type="button"
+			class="btn btn-outline-success like-btn"
+			data-post-id="{{post.id | string}}">
+			Like
+		</button>
+		{% endif %}
 
-  <div class="my-3">
-    <span class="like-count-{{post.id | string}}">{{post.likes|length}} {{"likes" if post.likes|length != 1 else
-      "like"}}</span>
-    <span class="comment-count-{{post.id | string}}">{{post.total_comments}} comments</span>
-    <span class="share-count-{{post.id | string}}">{{post.shares}} shares</span>
-  </div>
-  <div class="d-flex align-items-center gap-2 mb-3">
-    <!-- Likes -->
-    {% if post.is_liked_by_user(current_user.id) %}
-    <button type="button" class="btn btn-outline-success like-btn active"
-      data-post-id="{{post.id | string}}">Like</button>
-    {% else %}
-    <button type="button" class="btn btn-outline-success like-btn" data-post-id="{{post.id | string}}">Like</button>
-    {% endif %}
+		<!-- Share Button -->
+		<button
+			type="button"
+			class="btn btn-primary"
+			data-bs-toggle="modal"
+			data-bs-target="#shareModal-{{ post.id }}">
+			Share
+		</button>
+	</div>
 
-    <!-- Share Button -->
-    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#shareModal-{{ post.id }}">
-      Share
-    </button>
-  </div>
-
-  <!-- Comments Section -->
-  <div class="comments-section">
-    <h6>Comments:</h6>
-    <div class="comments d-flex flex-column gap-3">
-      {% for comment in post.comments %}
-      <div class="comment" data-comment-id="{{comment.id}}" id="comment-{{comment.id}}">
-        <a href="/profiles/{{comment.user.username}}"><img
-            src="{{ comment.user.image if comment.user.image else url_for('static', filename='placeholder.jpg')}}"
-            alt="{{ comment.user.username }}" class="avatar xs margin-t-2">
-        </a>
-        <div class="d-flex flex-column align-items-baseline">
-          <div class="comment-span text-break">
-            <a href="/profiles/{{comment.user.username}}"
-              class="text-decoration-none text-secondary-emphasis fw-medium lh-sm">
-              {{ comment.user.name }} {{ comment.user.surname }}
-            </a>
-            <span class="lh-sm small">{{ comment.content }}</span>
-          </div>
-          <d class="flex align-items-center">
-            <span class="text-muted text-xs fw-light cursor-pointer" data-bs-toggle="tooltip" data-bs-placement="bottom"
-              title="{{comment.created_at}}">{{ comment.created_at | time_ago }}</span>
-            {% if comment.is_liked_by_user(current_user.id) %}
-            <button class="my-btn text-muted comment-like-btn active">Unlike</button>
-            {% else %}
-            <button class="my-btn text-muted comment-like-btn">Like</button>
-            {% endif %}
-            {% if current_user.id == comment.user_id %}
-            <button class="my-btn text-danger delete-comment-btn">
-              Delete
-            </button>
-            {% endif %}
-            <div class="d-inline small fw-light" data-bs-toggle="tooltip" data-bs-placement="right"
-              title="{{comment.likes|length }} likes">
-              <span class="comment-like-count-{{comment.id | string}}">{{ comment.likes|length }}</span>
-              <i class="fa-solid fa-thumbs-up text-success fs-6"></i>
-            </div>
-          </d>
-        </div>
-
-      </div>
-      {% endfor %}
-    </div>
-    {% if post.total_comments > 3 %}
-    <button class="btn btn-link load-more-comments" data-post-id="{{ post.id }}" data-page="1">
-      Load more comments
-    </button>
-    {% endif %}
-    <div class="comment-box">
-      <input type="text" class="form-control comment-input" placeholder="Add a comment...">
-      <button class="btn btn-success mt-2 add-comment">Comment</button>
-    </div>
-  </div>
+	<!-- Comments Section -->
+	<div class="comments-section">
+		<h6>Comments:</h6>
+		<div class="comments d-flex flex-column gap-3">
+			{% for comment in post.comments %}
+			<div
+				class="comment"
+				data-comment-id="{{comment.id}}"
+				id="comment-{{comment.id}}">
+				<a href="/profiles/{{comment.user.username}}"
+					><img
+						src="{{ comment.user.image if comment.user.image else url_for('static', filename='placeholder.jpg')}}"
+						alt="{{ comment.user.username }}"
+						class="avatar xs margin-t-2" />
+				</a>
+				<div class="d-flex flex-column align-items-baseline">
+					<div class="comment-span text-break">
+						<a
+							href="/profiles/{{comment.user.username}}"
+							class="text-decoration-none text-secondary-emphasis fw-medium lh-sm">
+							{{ comment.user.name }} {{ comment.user.surname }}
+						</a>
+						<span class="lh-sm small">{{ comment.content }}</span>
+					</div>
+					<d class="flex align-items-center">
+						<span
+							class="text-muted text-xs fw-light cursor-pointer"
+							data-bs-toggle="tooltip"
+							data-bs-placement="bottom"
+							title="{{comment.created_at}}"
+							>{{ comment.created_at | time_ago }}</span
+						>
+						{% if comment.is_liked_by_user(current_user.id) %}
+						<button
+							class="my-btn text-muted comment-like-btn active">
+							Unlike
+						</button>
+						{% else %}
+						<button class="my-btn text-muted comment-like-btn">
+							Like
+						</button>
+						{% endif %} {% if current_user.id == comment.user_id %}
+						<button class="my-btn text-danger delete-comment-btn">
+							Delete
+						</button>
+						{% endif %}
+						<div
+							class="d-inline small fw-light"
+							data-bs-toggle="tooltip"
+							data-bs-placement="right"
+							title="{{comment.likes|length }} likes">
+							<span
+								class="comment-like-count-{{comment.id | string}}"
+								>{{ comment.likes|length }}</span
+							>
+							<i
+								class="fa-solid fa-thumbs-up text-success fs-6"></i>
+						</div>
+					</d>
+				</div>
+			</div>
+			{% endfor %}
+		</div>
+		{% if post.total_comments > 3 %}
+		<button
+			class="btn btn-link load-more-comments"
+			data-post-id="{{ post.id }}"
+			data-page="1">
+			Load more comments
+		</button>
+		{% endif %}
+		<div class="comment-box">
+			<input
+				type="text"
+				class="form-control comment-input"
+				placeholder="Add a comment..." />
+			<button class="btn btn-success mt-2 add-comment">Comment</button>
+		</div>
+	</div>
 </div>
 
 <!-- Share Modal -->
-<div class="modal fade" id="shareModal-{{post.id}}" data-post-id="{{ post.id | string }}" tabindex="-1"
-  aria-labelledby="shareModalLabel" aria-hidden="true">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" id="shareModalLabel">Share Post</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <form action="/post/{{post.id}}/reshare" method="POST">
-        <div class="modal-body">
-          <textarea id="share-text" class="form-control" name="content" rows="3"
-            placeholder="Add your text here..."></textarea>
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-          <button type="submit" class="btn btn-primary share-btn">Share</button>
-        </div>
-      </form>
-    </div>
-  </div>
+<div
+	class="modal fade"
+	id="shareModal-{{post.id}}"
+	data-post-id="{{ post.id | string }}"
+	tabindex="-1"
+	aria-labelledby="shareModalLabel"
+	aria-hidden="true">
+	<div class="modal-dialog modal-dialog-centered">
+		<div class="modal-content">
+			<div class="modal-header">
+				<h5 class="modal-title" id="shareModalLabel">Share Post</h5>
+				<button
+					type="button"
+					class="btn-close"
+					data-bs-dismiss="modal"
+					aria-label="Close"></button>
+			</div>
+			<form action="/post/{{post.id}}/reshare" method="POST">
+				<div class="modal-body">
+					<textarea
+						id="share-text"
+						class="form-control"
+						name="content"
+						rows="3"
+						placeholder="Add your text here..."></textarea>
+				</div>
+				<div class="modal-footer">
+					<button
+						type="button"
+						class="btn btn-secondary"
+						data-bs-dismiss="modal">
+						Close
+					</button>
+					<button type="submit" class="btn btn-primary share-btn">
+						Share
+					</button>
+				</div>
+			</form>
+		</div>
+	</div>
 </div>
 
 <!-- Delete modal -->
-<div class="modal fade" data-post-id="{{ post.id | string }}" tabindex="-1" id="deletePostModal-{{ post.id }}"
-  aria-labelledby="deletePostLabel-{{ post.id }}" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-bottom">
-    <div class="modal-content">
-      <div class="container">
-        <div class="modal-header">
-          <h5 class="modal-title" id="deletePostLabel-{{ post.id }}">Delete Post</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-        </div>
-        <div class="modal-body">
-          Are you sure you want to delete this post? This action cannot be undone.
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-          <!-- Delete Post Button -->
-          <button type="button" class="btn btn-danger delete-btn">Delete</button>
-        </div>
-      </div>
-    </div>
-  </div>
+<div
+	class="modal fade"
+	data-post-id="{{ post.id | string }}"
+	tabindex="-1"
+	id="deletePostModal-{{ post.id }}"
+	aria-labelledby="deletePostLabel-{{ post.id }}"
+	aria-hidden="true">
+	<div class="modal-dialog modal-dialog-bottom">
+		<div class="modal-content">
+			<div class="container">
+				<div class="modal-header">
+					<h5 class="modal-title" id="deletePostLabel-{{ post.id }}">
+						Delete Post
+					</h5>
+					<button
+						type="button"
+						class="btn-close"
+						data-bs-dismiss="modal"
+						aria-label="Close"></button>
+				</div>
+				<div class="modal-body">
+					Are you sure you want to delete this post? This action
+					cannot be undone.
+				</div>
+				<div class="modal-footer">
+					<button
+						type="button"
+						class="btn btn-secondary"
+						data-bs-dismiss="modal">
+						Cancel
+					</button>
+					<!-- Delete Post Button -->
+					<button type="button" class="btn btn-danger delete-btn">
+						Delete
+					</button>
+				</div>
+			</div>
+		</div>
+	</div>
 </div>
 {% endmacro %}
