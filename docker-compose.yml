@@ -1,0 +1,27 @@
+services:
+  web:
+    build: .
+    expose:
+      - 5000
+    volumes:
+      - ./instance:/app/instance
+    environment:
+      - FLASK_APP=app.py
+      - FLASK_ENV=production
+    networks:
+      - app_network
+
+  nginx:
+    build: ./nginx
+    ports:
+      - "80:80"
+    depends_on:
+      - web
+    volumes:
+      - ./static:/app/static
+      - ./media:/app/media
+    networks:
+      - app_network
+
+networks:
+  app_network:

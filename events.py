@@ -5,7 +5,10 @@ from flask_socketio import SocketIO, emit
 from helpers import format_time_ago
 from models import db, Message, User
 
-socketio = SocketIO()
+socketio = SocketIO(app, 
+    cors_allowed_origins="*",  # Configure according to your needs
+    async_mode='eventlet'
+)
 
 connected_users = {}
 
