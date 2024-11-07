@@ -23,7 +23,7 @@ from flask.cli import with_appcontext
 from flask_mail import Mail
 from flask_migrate import Migrate
 from flask_socketio import emit
-from markupsafe import escape
+from markupsafe import Markup, escape
 from sqlalchemy import or_
 from werkzeug.security import check_password_hash, generate_password_hash
 from werkzeug.utils import secure_filename
@@ -39,6 +39,8 @@ from helpers import (
     login_required,
     logout_required,
     not_found,
+    process_hashtags,
+    process_text,
     upload,
     validate_image,
 )
@@ -101,6 +103,23 @@ def delete_db_data_command():
 app.cli.add_command(delete_db_data_command)
 
 
+@app.before_request
+def load_user():
+    user_id = session.get("user_id")
+    if user_id:
+        g.user = db.get_or_404(User, user_id)  # Load the user or 404 if not found
+    else:
+        g.user = None  # Set to None if no user is in session
+
+
+# Instead of passing @login_required routes manually
+@app.before_request
+def require_login():
+    if g.user is None:
+        if request.endpoint not in ["login", "register"]:
+            return redirect(url_for("login"))
+
+
 # Inject user variable to all pages
 # https://flask.palletsprojects.com/en/3.0.x/templating/#context-processors
 @app.context_processor
@@ -147,6 +166,12 @@ def notification_message_converter(notification):
 @app.template_filter("notification_link")
 def notification_link_converter(notification):
     return create_notification_link(notification)
+
+
+@app.template_filter("process_text")
+def process_text_filter(text):
+    processed = process_text(text)
+    return Markup(processed)
 
 
 @app.before_request
@@ -297,7 +322,6 @@ def register():
 
 
 @app.route("/register/complete", methods=["GET", "POST"])
-@login_required
 def complete_profile():
     if request.method == "POST":
         # Ensure user exists
@@ -350,7 +374,6 @@ def complete_profile():
 
 # # Email confirmation from https://www.freecodecamp.org/news/setup-email-verification-in-flask-app/
 # @app.route("/confirm/<token>")
-# @login_required
 # def confirm_email(token):
 #     current_user = User.query.get(session["user_id"])
 #     if current_user.is_confirmed:
@@ -400,7 +423,6 @@ def user_delete(id):
 
 
 @app.route("/settings/general", methods=["POST"])
-@login_required
 def general_settings():
     image = request.files["image"]
     name = request.form["name"]
@@ -441,7 +463,6 @@ def general_settings():
 
 
 @app.route("/settings/password", methods=["POST"])
-@login_required
 def password_settings():
     current_password = request.form["current-password"]
     new_password = request.form["new-password"]
@@ -474,7 +495,6 @@ def password_settings():
 
 
 @app.route("/settings/info", methods=["POST"])
-@login_required
 def info_settings():
     # Get user
     user = db.get_or_404(User, session["user_id"])
@@ -511,7 +531,6 @@ def info_settings():
 
 
 @app.route("/settings/classes", methods=["POST"])
-@login_required
 def classes_settings():
     selected_classes = request.form.getlist("classes[]")
 
@@ -532,7 +551,6 @@ def classes_settings():
 
 
 @app.route("/settings/links", methods=["POST"])
-@login_required
 def links_settings():
     links = request.form.getlist("link[]")
 
@@ -557,7 +575,6 @@ def links_settings():
 
 # Feed
 @app.route("/")
-@login_required
 def index():
     posts = Post.query.order_by(Post.created_at.desc()).all()
 
@@ -571,7 +588,6 @@ def index():
 
 # Friends feed
 @app.route("/friends")
-@login_required
 def friends():
     # TODO: Display posts from friends of the user
     posts = Post.query.all()
@@ -580,7 +596,6 @@ def friends():
 
 # Post page
 @app.route("/posts/<int:id>")
-@login_required
 def post_page(id):
     post = Post.query.get_or_404(id)
     post.total_comments = len(post.comments)
@@ -589,7 +604,6 @@ def post_page(id):
 
 # Create post
 @app.route("/post", methods=["POST"])
-@login_required
 def create_post():
     content = request.form["content"]
     post = Post(content=content, user_id=session["user_id"])
@@ -600,7 +614,6 @@ def create_post():
 
 # Reshare post
 @app.route("/post/<id>/reshare", methods=["POST"])
-@login_required
 def reshare_post(id):
     current_user = db.get_or_404(User, session["user_id"])
     parent_post = Post.query.get_or_404(id)
@@ -632,7 +645,6 @@ def reshare_post(id):
 
 # Delete post
 @app.route("/post/delete/<id>", methods=["DELETE"])
-@login_required
 def delete_post(id):
     post = Post.query.get_or_404(id)
 
@@ -653,7 +665,6 @@ def delete_post(id):
 
 # Like post
 @app.route("/like/<id>", methods=["POST"])
-@login_required
 def like_post(id):
     current_user = db.get_or_404(User, session["user_id"])
     post = db.get_or_404(Post, id)
@@ -694,7 +705,6 @@ def like_post(id):
 
 # Like comment
 @app.route("/like/comment/<id>", methods=["POST"])
-@login_required
 def like_comment(id):
     current_user = db.get_or_404(User, session["user_id"])
     comment = db.get_or_404(Comment, id)
@@ -736,7 +746,6 @@ def like_comment(id):
 
 
 @app.route("/comment/<id>", methods=["POST"])
-@login_required
 def comment_post(id):
     content = request.json
 
@@ -777,7 +786,6 @@ def comment_post(id):
 
 # Delete comment
 @app.route("/comment/delete/<id>", methods=["DELETE"])
-@login_required
 def delete_comment(id):
     comment = Comment.query.get_or_404(id)
 
@@ -798,7 +806,6 @@ def delete_comment(id):
 
 # Load more comments
 @app.route("/post/<id>/comments")
-@login_required
 def load_more_comments(id):
     page = int(request.args["page"]) + 1
     comments = (
@@ -834,7 +841,6 @@ def load_more_comments(id):
 
 # Requests
 @app.route("/friends/requests")
-@login_required
 def display_friend_requests():
     user = db.get_or_404(User, session["user_id"])
 
@@ -851,7 +857,6 @@ def display_friend_requests():
 
 # Send a friend request
 @app.route("/requests/<username>", methods=["POST"])
-@login_required
 def send_friend_request(username):
     current_user = db.get_or_404(User, session["user_id"])
     target_user = User.query.filter_by(username=username).first()
@@ -930,7 +935,6 @@ def send_friend_request(username):
 
 # Accept a friend request
 @app.route("/requests/<username>/accept", methods=["POST"])
-@login_required
 def accept_friend_request(username):
     current_user = db.get_or_404(User, session["user_id"])
     target_user = User.query.filter_by(username=username).one_or_404()
@@ -979,7 +983,6 @@ def accept_friend_request(username):
 
 # Decline a friend request
 @app.route("/requests/<username>/decline", methods=["POST"])
-@login_required
 def decline_friend_request(username):
     current_user = db.get_or_404(User, session["user_id"])
     target_user = User.query.filter_by(username=username).one_or_404()
@@ -1003,7 +1006,6 @@ def decline_friend_request(username):
 
 # Remove a user from friends
 @app.route("/friends/<username>/remove", methods=["DELETE"])
-@login_required
 def remove_friend(username):
     current_user = db.get_or_404(User, session["user_id"])
     target_user = User.query.filter_by(username=username).one_or_404()
@@ -1027,7 +1029,6 @@ def remove_friend(username):
 
 # Start a new conversation
 @app.route("/messages/new")
-@login_required
 def start_conversation():
     friends_data = get_friends(session["user_id"])
     friends = []
@@ -1046,7 +1047,6 @@ def start_conversation():
 
 # Messages page
 @app.route("/messages")
-@login_required
 def view_messages():
     current_user = db.get_or_404(User, session["user_id"])
     messages = get_latest_conversations(current_user.id)
@@ -1056,7 +1056,6 @@ def view_messages():
 
 # Single message page
 @app.route("/messages/<username>")
-@login_required
 def view_conversation(username):
     # Get current user and friend
     current_user = db.get_or_404(User, session["user_id"])
@@ -1102,7 +1101,6 @@ def view_conversation(username):
 
 # Load more messages
 @app.route("/messages/<username>/more")
-@login_required
 def load_more_conversation(username):
     # Get current user and friend
     current_user = db.get_or_404(User, session["user_id"])
@@ -1155,7 +1153,6 @@ def load_more_conversation(username):
 
 # Update read status
 @app.route("/messages/<username>/mark_read", methods=["POST"])
-@login_required
 def mark_messages_as_read(username):
     # Get current user and friend
     current_user = db.get_or_404(User, session["user_id"])
@@ -1185,7 +1182,6 @@ def mark_messages_as_read(username):
 
 
 @app.route("/notifications")
-@login_required
 def notifications():
     current_user = db.get_or_404(User, session["user_id"])
     notifications = get_notifications(current_user.id)
@@ -1194,7 +1190,6 @@ def notifications():
 
 
 @app.route("/notifications/unread/all")
-@login_required
 def all_unread_notifications():
     current_user = db.get_or_404(User, session["user_id"])
     notifications = get_all_unread_notifications(current_user.id)
@@ -1204,7 +1199,6 @@ def all_unread_notifications():
 
 
 @app.route("/notifications/unread")
-@login_required
 def unread_notifications():
     current_user = db.get_or_404(User, session["user_id"])
     notifications = get_unread_notifications(current_user.id)
@@ -1212,7 +1206,6 @@ def unread_notifications():
 
 
 @app.route("/notifications/<int:notification_id>/read", methods=["POST"])
-@login_required
 def mark_notification_read(notification_id):
     notification = mark_as_read(notification_id, session["user_id"])
 
@@ -1224,7 +1217,6 @@ def mark_notification_read(notification_id):
 
 
 @app.route("/notifications/next-unread-notification", methods=["POST"])
-@login_required
 def next_unread_notification():
     notifications = request.get_json()
 
@@ -1239,7 +1231,6 @@ def next_unread_notification():
 
 
 @app.route("/notifications/mark-all-read", methods=["POST"])
-@login_required
 def mark_all_notifications_read():
     current_user = db.get_or_404(User, session["user_id"])
     Notification.query.filter_by(recipient_id=current_user.id, is_read=False).update(
@@ -1249,6 +1240,22 @@ def mark_all_notifications_read():
     return jsonify({"status": "success"})
 
 
+# Hashtag page
+@app.route("/tags/<string:tag>")
+def tag_view(tag):
+    pattern = f"%#{tag}%"
+
+    posts = (
+        Post.query.filter(Post.content.ilike(pattern)).order_by(Post.id.desc()).all()
+    )
+
+    for post in posts:
+        post.total_comments = len(post.comments)
+        post.comments = sorted(post.comments, key=lambda x: x.created_at)[:3]
+
+    return render_template("tags.html", posts=posts, tag=tag)
+
+
 # Run the app
 if __name__ == "__main__":
-    socketio.run(app)
+    socketio.run(app, host='0.0.0.0', port=5000)
