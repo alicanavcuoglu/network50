@@ -15,11 +15,15 @@ class Config:
     UPLOAD_AVATAR_PATH = "static/avatars"
     MAX_CONTENT_LENGTH = 1024 * 1024  # 1 MB
 
-    # Mail Settings
-    # MAIL_SERVER = "smtp.mailgun.org"
-    # MAIL_PORT = 587
-    # MAIL_USE_TLS = True
-    # MAIL_USERNAME = os.getenv("EMAIL_USER")
-    # MAIL_PASSWORD = os.getenv("MAILGUN_API_KEY")
-    # MAIL_DEFAULT_SENDER = os.getenv("EMAIL_USER")
-    # MAIL_PASSWORD = os.getenv("EMAIL_PASSWORD")
+
+class DevelopmentConfig(Config):
+    DEBUG = True
+
+
+class TestingConfig(Config):
+    TESTING = True
+
+
+class ProductionConfig(Config):
+    DEBUG = False
+    TESTING = False

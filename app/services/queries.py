@@ -1,6 +1,7 @@
-from flask import jsonify
-from sqlalchemy import case, desc, select
-from models import User, db, Message
+from app import db
+from sqlalchemy import case, select
+
+from app.models import Message, User
 
 
 # Friends of current user
@@ -70,6 +71,7 @@ def get_conversation(user_id, other_user_id):
 
 
 def start_conversation(): ...
+
 
 # Return unread messages
 def has_unread_messages(user_id):

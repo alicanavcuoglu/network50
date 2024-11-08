@@ -19,15 +19,15 @@ https://medium.com/@brodiea19/flask-sqlalchemy-how-to-upload-photos-and-render-t
 <!-- Creating & Importing Components -->
 https://jinja.palletsprojects.com/en/3.1.x/templates/#macros
 
-<!-- AJAX - Used fetch instead -->
-<!-- https://stackoverflow.com/questions/42601478/flask-calling-python-function-on-button-onclick-event  -->
-
 <!-- Many to many relations, many to many self referencing -->
 [Python SQLAlchemy ORM - Many to Many Relationships](https://www.youtube.com/watch?v=iosh_DWnliE&t=1s&ab_channel=ZeqTech)
 [Implementing a Self-Referential Many-to-Many relationship in Flask — SQLAlchemy](https://medium.com/@mandyranero/how-to-implement-and-use-a-flask-sqlalchemy-self-referential-many-to-many-relationship-11aa0179e13a)
-
 
 <!-- Live-Time Features (SocketIO) -->
 https://blog.miguelgrinberg.com/post/easy-websockets-with-flask-and-gevent
 https://github.com/mahmouddello/flask-chat-app/tree/master
 https://www.youtube.com/watch?v=AMp6hlA8xKA&ab_channel=PrettyPrinted
+
+<!-- Structure & Best Practices -->
+https://jnikenoueba.medium.com/the-10-best-practices-for-building-a-flask-application-b5a7dbc784f5
+https://blog.miguelgrinberg.com/post/the-flask-mega-tutorial-part-xv-a-better-application-structure

@@ -1,9 +1,7 @@
-""" Due to circular import errors """
-
-from dataclasses import asdict
-from helpers import format_time_ago
-from models import db, Notification
-from events import socketio, connected_users
+from app import db
+from app.events import connected_users
+from app.models import Notification
+from app.services import socketio
 
 
 def create_notification(
@@ -36,6 +34,7 @@ def get_unread_notifications(user_id):
         .limit(5)
         .all()
     )
+
 
 def get_all_unread_notifications(user_id):
     """Get user's unread notifications"""

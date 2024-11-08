@@ -1,0 +1,11 @@
+{% extends "layout.html" %} {% block title %} Server Error {% endblock %} {%
+block main %}
+<div class="text-center py-5">
+	<h1>{{ _('An unexpected error has occurred') }}</h1>
+	<p>
+		{{ _('The administrator has been notified. Sorry for the
+		inconvenience!') }}
+	</p>
+	<a class="btn btn-primary" href="/">{{ _('Back') }}</a>
+</div>
+{% endblock %}

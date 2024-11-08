@@ -1,4 +1,4 @@
-FROM python:3.10-slim
+FROM python:3.13-slim
 
 WORKDIR /app
 
@@ -25,5 +25,5 @@ USER www-data
 # Expose port
 EXPOSE 5000
 
-# Modified command to use Flask-SocketIO's worker
-CMD ["python", "-m", "flask", "run", "--host=0.0.0.0", "--port=5000"]
+# Command to run the application
+CMD ["python", "run.py"]

@@ -66,7 +66,7 @@
 						<!-- Brand -->
 						<a class="navbar-brand" href="/">Network50</a>
 
-						{% if g.user %}
+						{% if session.get("user_id") %}
 						<!-- Desktop Navigation -->
 						<div
 							class="collapse navbar-collapse d-none d-md-block me-auto"

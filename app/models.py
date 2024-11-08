@@ -1,25 +1,23 @@
-from dataclasses import dataclass
-from datetime import datetime, timezone
+from app import db
+
+import enum
+from datetime import datetime
 from typing import List
 
-from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import (
     Boolean,
     Column,
     DateTime,
     Enum,
+    ForeignKey,
     Integer,
     String,
     Table,
     Text,
-    ForeignKey,
 )
-from sqlalchemy.sql import func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-import enum
+from sqlalchemy.sql import func
 
-
-db = SQLAlchemy()
 
 # Association table for friends
 friends_table = Table(
@@ -225,12 +223,13 @@ class NotificationEnum(enum.Enum):
     COMMENT_LIKE = "comment_like"
 
 
+# Notification class
 class Notification(db.Model):
     id: Mapped[int] = mapped_column(primary_key=True)
     recipient_id: Mapped[int] = mapped_column(ForeignKey("user.id"), nullable=False)
     sender_id: Mapped[int] = mapped_column(ForeignKey("user.id"), nullable=False)
     notification_type: Mapped[NotificationEnum] = mapped_column(
-        # Modified with ChatGPT because I was getting Enum keys instead of Enum values
+        # Modified with ChatGPT, before I was getting Enum keys instead of Enum values
         Enum(NotificationEnum, values_callable=lambda obj: [e.value for e in obj]),
         nullable=False,
     )
